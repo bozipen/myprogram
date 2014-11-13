@@ -63,7 +63,7 @@ class CARMA
 		
 		//预测模型求解相关
 		void	get_model();	//确定模型p,q值
-		int	parameter_estimation(int p, int q, CData &v_p, CData &v_q);//根据p,q值，进行最小二乘参数估计
+		void	parameter_estimation(int p, int q, CData &v_p, CData &v_q);//根据p,q值，进行最小二乘参数估计
 		DataType	get_bic_value(int p, int q, CData &v_p, CData &v_q);//根据p,q，参数值，获取BIC值
 		DataType get_mean_data();//获取数据均值
 		void	print_his_data();//打印历史数据信息

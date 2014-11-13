@@ -30,7 +30,7 @@ CARMA::CARMA(CDataSet& his_data, int p, int q)
 
 int CARMA::get_model()
 {
-	if (m_p < 1 || m_q < 1)
+	if (m_p<1 || m_q<1)
 	{
 		return -1;
 	}
