@@ -1,4 +1,4 @@
-include $(ZHJKDIR)/include/makefile.comm
+include $(ZHJKDIR)/include/makefile.tux
 
 OBJS=main.o arma.o
 
@@ -15,6 +15,6 @@ clean:
 	
 
 install:
-	cp $(TARGET) $(APPDIR);
+	cp $(TARGET) $(APPDIR)
 	
 	

@@ -1,0 +1,108 @@
+#include <string>
+#include <iostream>
+
+#include "arma.h"
+#include "myoracomm.h"
+#include "strtools.h"
+
+using namespace std;
+
+int connect_database(char *db_name);
+int disconnect_database();
+
+
+
+int main(int argc, char** argv) 
+{
+	
+	int ret = -1;
+	
+	ret = connect_database("");
+	if (ret < 0)
+	{
+		writelogfile(modelname,"[%s,%d]connect db  failed, sqlca.sqlcode=%d\n",__FILE__,__LINE__,ret);
+		return ret;
+	}
+	
+	
+	
+	CARMA armaobj();
+	
+	cout<<"main test"<<endl;
+
+		
+	return 0;
+}
+
+
+
+/**
+ * @brief 连接数据库
+ * @param in   
+ *        char *db_name 数据库连接串
+ * @param out   
+ *        无
+ * @return
+ *        成功返回0，否则返回连接错误码
+ * @note
+ *        不传参数默认连接ALARM_DB_NAME指定的数据库
+ *        传参数连接db_name指定的数据库
+ * @remarks
+ */
+int connect_database(char *db_name)
+{
+	EXEC SQL begin declare section;
+		char  userid[255];
+	EXEC SQL end declare section;
+	
+	memset(userid, '\0', sizeof(userid));
+	
+	if (strcmp(db_name,"") == 0)
+	{
+		char *pdb_name = NULL;
+		
+		pdb_name = getenv("ALARM_DB_NAME");
+
+		if (pdb_name != NULL)
+		{
+			strcpy(userid, pdb_name);
+		}
+		else
+		{
+			strcpy(userid, db_name);
+		}
+		
+	}
+	else
+	{
+		strcpy(userid, db_name);
+	}
+
+	EXEC SQL CONNECT :userid;
+    if (sqlca.sqlcode != 0)
+    {
+		return sqlca.sqlcode;
+    }
+    
+	return 0;
+}
+
+/**
+ * @brief 断开数据库数据库
+ * @param in 
+ *        无
+ * @param out   
+ *        无
+ * @return
+ *        成功返回0
+ * @note
+ *           
+ * @remarks
+ */
+int disconnect_database()
+{
+	EXEC SQL COMMIT WORK RELEASE;
+	return 0;
+}
+
+

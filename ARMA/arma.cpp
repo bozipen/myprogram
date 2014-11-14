@@ -18,15 +18,12 @@ CARMA::CARMA(CDataSet& his_data, int p, int q)
 	m_his_data.assign(his_data.begin(), his_data.end());
 	m_forest_data.assign(his_data.begin(), his_data.end());
 	
-	m_data_size = m_his_data.size;
+	m_data_size = m_his_data.size();
 	
 	print_his_data();
 	
 	m_p = p;
 	m_q = q;
-	
-	
-	get_model();//获取模型
 	
 	
 }
@@ -48,24 +45,18 @@ int CARMA::get_model()
 	DataType epsinon  = 0.00001;
 		
 	//穷举法利用p,q进行参数估计
-	for (i=1; i<m_p, i++)
+	for (i=1; i<m_p; i++)
 	{
-		for (j=1; j<m_q, j++)
+		for (j=1; j<m_q; j++)
 		{
 			vector<DataType> v_p;
 			vector<DataType> v_q;
 					
-			parameter_estimation(i, j, &v_p, &v_q);//参数估计
+			parameter_estimation(i, j, v_p, v_q);//参数估计
 			
 			CData v_next;//预测值			
-			temp_bic = get_bic_value(i, j, &v_p, &v_q, &v_next);//根据当前p,q,参数估计值获取BIC值
-			
-			//存储所有的p,q组合的BIC值
-			S_BIC s_bic_temp;
-			s_bic_temp.p = i;
-			s_bic_temp.q = j;
-			s_bic_temp.bic_value = temp_bic;
-			
+			temp_bic = get_bic_value(i, j, v_p, v_q, v_next);//根据当前p,q,参数估计值获取BIC值
+					
 			//记录最小的BIC值及p,q值
 			if ( (min_bic - temp_bic > epsinon) && (min_bic - temp_bic < -epsinon) )
 			{
@@ -73,8 +64,14 @@ int CARMA::get_model()
 				last_p = i;
 				last_q = j;
 				
-                update_forest_data(&v_next);		
+                update_forest_data(v_next);		
 			}
+			
+			//存储所有的p,q组合的BIC值
+			S_BIC s_bic_temp;
+			s_bic_temp.p = i;
+			s_bic_temp.q = j;
+			s_bic_temp.bic_value = temp_bic;
 						
 			m_bic.push_back(s_bic_temp);
 					
@@ -102,8 +99,8 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	}
 	
 	//数据均值
-	double mean_data = 0.00;
-	mean_data = get_mean_data();
+	double mean_value = 0.00;
+	mean_value = get_mean_data();
 	
 	CDataSet mean_data;
 	
@@ -112,7 +109,7 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	//数据居中处理	
 	for (i=0; i<m_data_size; i++)
 	{
-		mean_data[i].value = mean_data[i].value - mean_data;
+		mean_data[i].value = mean_data[i].value - mean_value;
 	}
 	
     //构造AR参数估计相关矩阵
@@ -352,31 +349,22 @@ DataType CARMA::get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_nex
 void CARMA::update_forest_data(CData &v_next)
 {   
     int i=0;
-	for (i=0; i<m_his_data; i++)
+	for (i=0; i<m_data_size; i++)
 	{
 	    m_forest_data[i].value = v_next[i];
 	}
-    
-	
-}
-
-
-void CARMA::get_result()
-{
-
-	
+  
 }
 
 
 
-int CARMA::get_threshold(int k_, int A_m, int theta, int t)
+int CARMA::get_threshold(int k, int A_m, int theta, int t)
 {
 	int i,j,ii,jj,kk;
-	int curve_value;
+	int curve_value = 0;
 	
-	DataType integral_value;
+	DataType integral_value = 0.00;
 	DataType epsinon  = 0.01;
-	
 	DataType point_k = 0.00;
 	
 	for (i=1; i<k; i++)
@@ -384,16 +372,16 @@ int CARMA::get_threshold(int k_, int A_m, int theta, int t)
 		DataType means[i];//记录K个聚类均值
 		k_means(i, means);//K均值聚类算法
 				
-		for (ii=0; ii<A_m; ii++)
+		for (ii=1; ii<A_m; ii++)
 		{
-			for (jj=0; jj<theta; jj++)
+			for (jj=1; jj<theta; jj++)
 			{
-				for (kk=0; kk<t; kk++)
+				for (kk=1; kk<t; kk++)
 				{			
 					integral_value = get_integral(ii, jj, (DataType)0, (DataType)kk);
 					
 					//判断积分与1的关系，在误差的范围内
-					if ( abs(integral_value - 1) >= epsinon )
+					if ( fabs(integral_value - 1) >= epsinon )
 					{
 						//根据当前的t值获取阈值,k个聚类将0~t的区间分为k份				
 						DataType curr = 0.00;
@@ -402,8 +390,9 @@ int CARMA::get_threshold(int k_, int A_m, int theta, int t)
 						DataType diff = 0.00;
 						
 						for (j=1; j<=i; j++)
-						{						
-							curr = get_integral(ii, jj, (DataType)0, (DataType)(t*j)/i);							
+						{
+						    //(kk*j)/i  (k-1)*t/k				
+							curr = get_integral(ii, jj, (DataType)0, (DataType)(kk*j)/i);							
 																									
 							diff = curr - before;
 							before = curr;													
@@ -429,38 +418,124 @@ int CARMA::get_threshold(int k_, int A_m, int theta, int t)
 
 }
 
-int CARMA::forget_curve_division(int k, int A_m, int theta, int t)
+int CARMA::get_forest_segment(string time)
 {
-	int i, j, kk;
-	int t_result = 0;
-	
-	DataType integral_value;
-	DataType epsinon  = 0.01;
-	
-	for (i=0; i<A_m; i++)
-	{
-		for (j=0; j<theta; j++)
-		{
-			for (kk=0; kk<t; kk++)
-			{
-				integral_value = get_integral(i, j, (DataType)0, (DataType)t);
-				
-				//判断积分与1的关系，在误差的范围内
-				if ( (integral_value - 1 < epsinon) && (integral_value - 1 > -epsinon) )
-				{
-					//根据当前的t值获取阈值
-					
-					
-					break;
-				}
-								
-			}
-		}
-	}
-
-    return SUCC;
-	
+    //获取当前时刻预测数据以及历史数据
+    int i=0;
+    DataType forest_value = 0.00;
+    
+    for (i=0; i<m_data_size; i++)
+    {
+        //具体时间格式需要确定
+        if (time.compare(m_forest_data[i].time) == 0)
+        {
+            forest_value = m_forest_data[i].value;
+            break;            
+        }
+    }
+    
+    int data_size = 0;
+    CDataSet currdata;
+    
+    data_size = getcurrdata(time, currdata);
+    if (data_size < 1)
+    {
+        return FAIL;
+    }
+      
+    DataType forest_rate = 0.00;
+    DataType temp_rate = 0.00;
+    DataType epsinon = 0.0001;
+    DataType best_threshold = 0.00;
+    
+  
+    int len = m_thresholds.size(); 
+    for (i=0; i<len; i++)
+    {
+        temp_rate = get_forest_rate(forest_value, m_thresholds[i], currdata);
+        
+        if ( (temp_rate - forest_rate) >= epsinon )
+        {
+            forest_rate = temp_rate;
+            best_threshold = m_thresholds[i];
+        }
+               
+    }
+    
+    m_min_threshold = forest_value - (DataType)best_threshold/(DataType)2;
+    m_max_threshold = forest_value + (DataType)best_threshold/(DataType)2;
+    
+       
+    return SUCC;    
 }
+
+int CARMA::getcurrdata(string time, CDataSet& data)
+{
+    int i=0;
+    int data_size = 0;
+    
+    for (i=0; i<m_data_size; i++)
+    {
+        //具体时间格式需要确定
+        if (time.compare(10, 8, m_his_data[i].time, 10, 8) == 0)
+        {
+            data.push_back(m_his_data[i]);
+            data_size++;
+        }
+    }
+    
+    
+    return data_size;
+}
+
+DataType CARMA::get_forest_rate(DataType forest_value, DataType threshold, CDataSet& data)
+{    
+    DataType min_value = 0.00;
+    DataType max_value = 0.00;
+    DataType epsinon = 0.0001;
+    DataType rate = 0.0000;
+    
+    int num_a, num_b, num_c, num_d; 
+    
+    min_value = forest_value - (DataType)threshold/(DataType)2;
+    max_value = forest_value + (DataType)threshold/(DataType)2;
+    
+    int i;
+    int data_size = data.size();
+    for (i=0; i<data_size; i++)
+    {
+        if ( (data[i].value-min_value >= epsinon) && (max_value-data[i].value >= epsinon) )
+        {
+            if (data[i].flag == 0)
+            {
+                num_a++;
+            }
+            else
+            {
+                num_b++;
+            }
+        }
+        else
+        {
+            if (data[i].flag == 0)
+            {
+                num_c++;
+            }
+            else
+            {
+                num_d++;
+            }
+        }
+                               
+    }
+    
+    rate = (DataType)(num_a+num_b+num_c+num_d)/(DataType)(num_a+num_b+num_c+num_d);
+    
+    return rate;
+    
+}
+
+
 
 DataType CARMA::get_integral(int A_m, int theta, DataType a, DataType b)
 {
@@ -472,7 +547,7 @@ DataType CARMA::get_integral(int A_m, int theta, DataType a, DataType b)
 	
 	int n=100;//积分和划分区间
 	
-	h=fab(b-a)/n;
+	h=fabs(b-a)/n;
 	
 	s=0;
 	for(i=1;i<=n;i++)
@@ -528,7 +603,7 @@ void CARMA::k_means(int k, DataType means[])
 	
 	DataType epsinon = 1.00;
 	
-	while(abs(newVar - oldVar) >= epsinon) //当新旧函数值相差不到epsinon即准则函数值不发生明显变化时，算法终止
+	while(fabs(newVar - oldVar) >= epsinon) //当新旧函数值相差不到epsinon即准则函数值不发生明显变化时，算法终止
 	{
 		//更新每个簇的中心点
 		for (i = 0; i < k; i++) 
@@ -572,13 +647,13 @@ void CARMA::k_means(int k, DataType means[])
 //根据质心，决定当前元组属于哪个簇
 int CARMA::getcluster(int k, DataType means[],Data tuple)
 {
-	DataType dist = getDistXY(means[0],tuple);
+	DataType dist = getdistXY(means[0],tuple);
 	DataType tmp;
 	
 	int label=0;//标示属于哪一个簇
 	for(int i=1;i<k;i++)
 	{
-		tmp = getDistXY(means[i], tuple);
+		tmp = getdistXY(means[i], tuple);
 		if(tmp < dist) 
 		{
 			dist = tmp;
@@ -598,7 +673,7 @@ DataType CARMA::getvar(int k, vector<Data> clusters[],DataType means[])
 		vector<Data> t = clusters[i];
 		for (int j = 0; j< t.size(); j++)
 		{
-			var += getDistXY(means[i], t[j]);
+			var += getdistXY(means[i], t[j]);
 		}
 	}
 	//cout<<"sum:"<<sum<<endl;
@@ -629,7 +704,7 @@ DataType CARMA::getmeans(vector<Data> cluster)
 DataType CARMA::getdistXY(DataType x, Data y)
 {
 	
-	return abs(x - y.vlaue);
+	return fabs(x - y.value);
 	
 }
 
@@ -637,7 +712,7 @@ void CARMA::print_his_data()
 {
 	int i=0;
 	
-	for (i=0; i<m_his_data; i++)
+	for (i=0; i<m_data_size; i++)
 	{
 		cout<<i<<":"<<m_his_data[i].value<<"|"<<m_his_data[i].time<<"|"<<m_his_data[i].flag<<endl;
 	}
@@ -671,7 +746,7 @@ int CARMA::init_matrix(double** matrix, int row, int column)
 	{
 		for (j=0; j<column; j++)
 		{
-			matrix[i][j]) = 0;
+			matrix[i][j] = 0;
 		}
 	}
 
@@ -771,9 +846,14 @@ int CARMA::inverse_matirx(double** matrix, double** inverse_matirx, int row, int
 	SP = (double **)malloc(row*sizeof(double*));
 	AB = (double **)malloc(row*sizeof(double*));
 	TempMatrix = (double **)malloc(row*sizeof(double*));
+	
 	X = determ_matrix(matrix, row, column);
 	if(X == 0)
-		return FAIL;
+	{
+	    return FAIL;
+	}
+		
+		
 	X = 1/X;
 	
 	for(i = 0; i < row; i++) 
@@ -797,11 +877,12 @@ int CARMA::inverse_matirx(double** matrix, double** inverse_matirx, int row, int
 				for(y = 0; y < row; y++)
 					TempMatrix[y][j]=0;
 				TempMatrix[(int)((i*column+j)/row)][(i*column+j)%row] = 1;
-				SP[(int)((i*column+j)/row)][(i*column+j)%row] = DeterminantOfMatrix(TempMatrix, row, column);
+				SP[(int)((i*column+j)/row)][(i*column+j)%row] = determ_matrix(TempMatrix, row, column);
 				AB[(int)((i*column+j)/row)][(i*column+j)%row] = X * SP[(int)((i*column+j)/row)][(i*column+j)%row];
 			}
 		}
 	}
+	
 	trans_matrix(AB, inverse_matirx, row, column);
 
 	return SUCC;
@@ -810,10 +891,12 @@ int CARMA::inverse_matirx(double** matrix, double** inverse_matirx, int row, int
 
 int CARMA::multiply_matrix(double** matrix1, int row1, int column1, double** matrix2, int row2, int column2, double** matrix_result)
 {
-	int i,j,k;
 	if(column1 != row2)
-		return FAIL;
-
+	{
+	    return FAIL;
+	}
+		
+    int i,j,k;
 	for(i = 0; i < row1; i++)
 	{
 		for(j = 0; j < column2; j++)
