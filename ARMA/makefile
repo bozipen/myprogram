@@ -6,12 +6,12 @@ TARGET=arma
 
 all:$(TARGET)
 $(TARGET): $(OBJS)
-	$(CPP) -o $(TARGET) $(CPPFLAGS) $(LIBS) $(OBJS) \
+	$(CPP) -o $(TARGET) $(CPPFLAGS) $(OBJS) $(LIBS)
 #	-lstrtools  -lmyoracomm
 
 
 clean:
-	rm *.o $(TARGET)
+	rm *.lis *.cc *.o $(TARGET)
 	
 
 install:

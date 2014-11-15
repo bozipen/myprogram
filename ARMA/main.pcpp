@@ -1,34 +1,47 @@
-#include <string>
-#include <iostream>
-
 #include "arma.h"
 #include "myoracomm.h"
 #include "strtools.h"
-
 using namespace std;
 
-int connect_database(char *db_name);
+
+#define P 3
+#define Q 3
+#define FILE_NAME "test.dat"
+
+
+int connect_database(char* db_name);
 int disconnect_database();
 
+int get_db_data(CDataSet& data);  //从数据库获取数据
+int get_file_data(char *filename, CDataSet& data);//从文件获取数据
 
+char modelname[64];
 
 int main(int argc, char** argv) 
-{
-	
+{	
 	int ret = -1;
 	
-	ret = connect_database("");
-	if (ret < 0)
+//	ret = connect_database("");
+//	if (ret < 0)
+//	{
+//		writelogfile(modelname,"[%s,%d]connect db  failed, sqlca.sqlcode=%d\n",__FILE__,__LINE__,ret);
+//		return ret;
+//	}
+	
+	
+	CDataSet his_data;
+	
+	//获取一段时间的历史数据
+//	get_db_data(his_data);
+   
+	if (get_file_data(FILE_NAME, his_data) < 0)
 	{
-		writelogfile(modelname,"[%s,%d]connect db  failed, sqlca.sqlcode=%d\n",__FILE__,__LINE__,ret);
-		return ret;
+	    cout<<"get_file_data error"<<endl;
 	}
 	
 	
+	CARMA armaobj(his_data, P, Q);
 	
-	CARMA armaobj();
-	
-	cout<<"main test"<<endl;
 
 		
 	return 0;
@@ -105,4 +118,62 @@ int disconnect_database()
 	return 0;
 }
 
+int get_db_data(CDataSet& data)
+{
+    
+}
 
+int get_file_data(char *filename, CDataSet& data)
+{
+    fstream fin;
+	fin.open(filename,ios::in);
+		
+	Data atrans;          //事务	
+	char linebuf[2048];    //行数据缓冲区
+	char* p;               //字符串指针，指向下一个特定的快
+	char* des;			   //指向strtok返回的字符块
+		
+	while (!fin.eof())
+	{	
+	    int index = 0;	
+		fin.getline(linebuf, 2048);
+		
+//		cout<<"linebuf="<<linebuf<<endl;
+		 
+		p = strtok(linebuf, ",");    
+		while(p != NULL)
+		{
+			if (index == 0)
+			{
+			    atrans.value = atof(p);
+			}
+			else if (index == 1)
+			{
+			    string str_temp(p);
+			    atrans.time=str_temp;  
+			}
+			else
+			{
+			    atrans.flag = atoi(p);			    
+			}
+			
+			if (index == 2)
+			{
+			   data.push_back(atrans);
+//			   cout<<atrans.value<<","<<atrans.time<<","<<atrans.flag<<endl;
+			}
+			        
+			
+			index++;
+			
+			p = strtok(NULL, ",");
+			
+		}
+			
+	}
+	
+	fin.close();
+	
+	return 0;
+
+}

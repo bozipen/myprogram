@@ -19,12 +19,18 @@ CARMA::CARMA(CDataSet& his_data, int p, int q)
 	m_forest_data.assign(his_data.begin(), his_data.end());
 	
 	m_data_size = m_his_data.size();
+	cout<<"m_data_size="<<m_data_size<<endl;
+
 	
 	print_his_data();
-	
+		
 	m_p = p;
 	m_q = q;
-	
+
+    cout<<"p="<<m_p<<","<<"q="<<m_q<<endl;
+    
+//    get_model();
+    
 	
 }
 
@@ -45,18 +51,22 @@ int CARMA::get_model()
 	DataType epsinon  = 0.00001;
 		
 	//穷举法利用p,q进行参数估计
-	for (i=1; i<m_p; i++)
+	for (i=2; i<m_p; i++)
 	{
-		for (j=1; j<m_q; j++)
+		for (j=2; j<m_q; j++)
 		{
 			vector<DataType> v_p;
 			vector<DataType> v_q;
+			
+			cout<<"parameter_estimation"<<endl;
 					
 			parameter_estimation(i, j, v_p, v_q);//参数估计
-			
+						
 			CData v_next;//预测值			
 			temp_bic = get_bic_value(i, j, v_p, v_q, v_next);//根据当前p,q,参数估计值获取BIC值
-					
+			cout<<"temp_bic="<<temp_bic<<endl;
+			
+			getchar();	
 			//记录最小的BIC值及p,q值
 			if ( (min_bic - temp_bic > epsinon) && (min_bic - temp_bic < -epsinon) )
 			{
@@ -91,16 +101,18 @@ int CARMA::get_model()
 
 int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 {
-	int i,j,k;
-	
 	if ( p >= m_data_size || q >= m_data_size)
 	{
 		return FAIL;
 	}
 	
+	int i,j,k;
+	
 	//数据均值
 	double mean_value = 0.00;
 	mean_value = get_mean_data();
+	
+	cout<<"mean_value="<<mean_value<<endl;
 	
 	CDataSet mean_data;
 	
@@ -110,22 +122,27 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	for (i=0; i<m_data_size; i++)
 	{
 		mean_data[i].value = mean_data[i].value - mean_value;
+		cout<<i<<":"<<mean_data[i].value<<","<<mean_data[i].time<<","<<mean_data[i].flag<<endl;
 	}
 	
+
     //构造AR参数估计相关矩阵
 	DataType **Y_matrix, **X_matrix, **para_matrix_p;
 	DataType **X_matrix_trans, **matrix_temp1, **matrix_temp2, **matrix_temp3;
 	
 	int p_matrix_size = m_data_size - p;
 	
-	init_matrix(Y_matrix, p_matrix_size, 1);         //Y矩阵[n-p,1]，n=m_data_size
-	init_matrix(X_matrix, p_matrix_size, p);         //X矩阵[n-p,p]
-	init_matrix(para_matrix_p, p, 1);                //AR系数矩阵[p,1]
-	init_matrix(X_matrix_trans, p, p_matrix_size);   //X矩阵转置[p, n-p]
-	init_matrix(matrix_temp1, p, p);                 //X_T*X
-	init_matrix(matrix_temp2, p, p);                 //(X_T*X)^
-	init_matrix(matrix_temp3, p, p_matrix_size);     //(X_T*X)^*X_T
+	init_matrix(&Y_matrix, p_matrix_size, 1);         //Y矩阵[n-p,1]，n=m_data_size	
+	init_matrix(&X_matrix, p_matrix_size, p);         //X矩阵[n-p,p]
+	init_matrix(&para_matrix_p, p, 1);                //AR系数矩阵[p,1]
+	init_matrix(&X_matrix_trans, p, p_matrix_size);   //X矩阵转置[p, n-p]
+	init_matrix(&matrix_temp1, p, p);                 //X_T*X
+	init_matrix(&matrix_temp2, p, p);                 //(X_T*X)^
+	init_matrix(&matrix_temp3, p, p_matrix_size);     //(X_T*X)^*X_T
 	
+	cout<<"p_matrix_size="<<p_matrix_size<<endl;
+	cout<<"p="<<p<<endl;
+	cout<<"q="<<q<<endl;
 	
 	//Y矩阵赋值
 	for (i=0; i<p_matrix_size; i++)
@@ -133,6 +150,10 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 		Y_matrix[i][0] = mean_data[i+p].value;
 	}
 	
+	cout<<"Y_matrix:"<<endl;
+	print_matrix(Y_matrix, p_matrix_size, 1);
+
+		
 	//X矩阵赋值
 	for (i=0; i<p_matrix_size; i++)
 	{
@@ -141,27 +162,43 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 			X_matrix[i][j] = mean_data[i+p-1-j].value;
 		}	
 	}
-	
 
-	cout<<"Y_matrix:"<<endl;
-	print_matrix(Y_matrix, p_matrix_size, 1);
-	
 	cout<<"X_matrix:"<<endl;
 	print_matrix(X_matrix, p_matrix_size, p);
 	
+	
 
 	//最小二乘矩阵求解AR参数
-	trans_matrix(X_matrix, X_matrix_trans, p_matrix_size, p);                                    //X_T
-	multiply_matrix(X_matrix_trans, p, p_matrix_size, X_matrix, p_matrix_size, p, matrix_temp1); //X_T*X	
-	inverse_matirx(matrix_temp1, matrix_temp2, p, p);                                            //(X_T*X)^
-	multiply_matrix(matrix_temp2, p, p, X_matrix_trans, p, p_matrix_size, matrix_temp3);         //(X_T*X)^ * X_T
-	multiply_matrix(matrix_temp3, p, p_matrix_size, Y_matrix, p_matrix_size, 1, para_matrix_p);  //(X_T*X)^ * X_T * Y
+	trans_matrix(X_matrix, &X_matrix_trans, p_matrix_size, p);                                    //X_T
+	cout<<"X_matrix_trans:"<<endl;
+	print_matrix(X_matrix_trans, p, p_matrix_size);
+    
 	
+	multiply_matrix(X_matrix_trans, p, p_matrix_size, X_matrix, p_matrix_size, p, &matrix_temp1); //X_T*X	
+	
+	cout<<"matrix_temp1:"<<endl;
+	print_matrix(matrix_temp1, p, p);
+     
+	
+	inverse_matirx(matrix_temp1, &matrix_temp2, p, p);                                            //(X_T*X)^
+	
+    cout<<"matrix_temp2:"<<endl;
+	print_matrix(matrix_temp2, p, p);
+    
+ 
+	
+	multiply_matrix(matrix_temp2, p, p, X_matrix_trans, p, p_matrix_size, &matrix_temp3);         //(X_T*X)^ * X_T	
+	
+	cout<<"matrix_temp3:"<<endl;
+	print_matrix(matrix_temp3, p, p_matrix_size);
+    
+ 	
+	multiply_matrix(matrix_temp3, p, p_matrix_size, Y_matrix, p_matrix_size, 1, &para_matrix_p);  //(X_T*X)^ * X_T * Y
 	
 	cout<<"para_matrix_p:"<<endl;
-	print_matrix(para_matrix_p, p, 1);
-
-
+	print_matrix(para_matrix_p, p, 1);   
+   
+	
 	//构造MA参数估计相关矩阵
 	DataType **YY_matrix, **E_matrix, **para_matrix_q;
 	DataType **E_matrix_trans, **q_matrix_temp1, **q_matrix_temp2, **q_matrix_temp3;
@@ -169,13 +206,13 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	int max_pq = get_max_pq(p, q);
 	int q_matrix_size = m_data_size - max_pq;
 	
-	init_matrix(YY_matrix, q_matrix_size, 1);      //YY矩阵[n-q,1],n=m_data_size-max_pq  
-	init_matrix(E_matrix, q_matrix_size, q);       //X矩阵[n-q,q]
-	init_matrix(para_matrix_q, q, 1);              //MA系数矩阵[q,1]
-	init_matrix(E_matrix_trans, q, q_matrix_size); //E矩阵转置[p, n-p]
-	init_matrix(q_matrix_temp1, q, q);             //E_T*E
-	init_matrix(q_matrix_temp2, q, q);             //(E_T*E)^
-	init_matrix(q_matrix_temp3, q, q_matrix_size); //(E_T*E)^*E_T
+	init_matrix(&YY_matrix, q_matrix_size, 1);      //YY矩阵[n-q,1],n=m_data_size-max_pq  
+	init_matrix(&E_matrix, q_matrix_size, q);       //X矩阵[n-q,q]
+	init_matrix(&para_matrix_q, q, 1);              //MA系数矩阵[q,1]
+	init_matrix(&E_matrix_trans, q, q_matrix_size); //E矩阵转置[p, n-p]
+	init_matrix(&q_matrix_temp1, q, q);             //E_T*E
+	init_matrix(&q_matrix_temp2, q, q);             //(E_T*E)^
+	init_matrix(&q_matrix_temp3, q, q_matrix_size); //(E_T*E)^*E_T
 	
 	//YY矩阵赋值
 	for (i=0; i<q_matrix_size; i++)
@@ -184,12 +221,13 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	}
 	
 	//E矩阵赋值
-	double temp = 0.0;
+	
 	for (i=0; i<q_matrix_size; i++)
 	{
 		for (j=0; j<q; j++)
 		{
 			//求E矩阵当前值对应的X的AR预测值
+			double temp = 0.0;
 			for (k=0; k<p; k++)
 			{
 				temp += para_matrix_p[k][0]*mean_data[i+max_pq-1-j-k-1].value;
@@ -207,16 +245,17 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	cout<<"E_matrix:"<<endl;
 	print_matrix(E_matrix, q_matrix_size, q);
 	
+
 		
 	//最小二乘矩阵求解MA参数
-	trans_matrix(E_matrix, E_matrix_trans, q_matrix_size, q);                                        //E_T
-	multiply_matrix(E_matrix_trans, q, q_matrix_size, E_matrix, q_matrix_size, q, q_matrix_temp1);   //E_T*E
-	inverse_matirx(q_matrix_temp1, q_matrix_temp2, q, q);                                            //(E_T*E)^
-	multiply_matrix(q_matrix_temp2, q, q, E_matrix_trans, q, q_matrix_size, q_matrix_temp3);         //(E_T*E)^ * E_T
-	multiply_matrix(q_matrix_temp3, q, q_matrix_size, YY_matrix, q_matrix_size, 1, para_matrix_q);   //(E_T*E)^ * E_T * YY
+	trans_matrix(E_matrix, &E_matrix_trans, q_matrix_size, q);                                        //E_T
+	multiply_matrix(E_matrix_trans, q, q_matrix_size, E_matrix, q_matrix_size, q, &q_matrix_temp1);   //E_T*E
+	inverse_matirx(q_matrix_temp1, &q_matrix_temp2, q, q);                                            //(E_T*E)^
+	multiply_matrix(q_matrix_temp2, q, q, E_matrix_trans, q, q_matrix_size, &q_matrix_temp3);         //(E_T*E)^ * E_T
+	multiply_matrix(q_matrix_temp3, q, q_matrix_size, YY_matrix, q_matrix_size, 1, &para_matrix_q);   //(E_T*E)^ * E_T * YY
 	
 	
-	cout<<"para_matrix_p:"<<endl;
+	cout<<"para_matrix_q:"<<endl;
 	print_matrix(para_matrix_q, q, 1);
 
 	
@@ -337,6 +376,9 @@ DataType CARMA::get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_nex
 	
 	
 	delta = (double)sum_t/(double)temp_two;
+	
+	cout<<"delta:"<<delta<<endl;
+	cout<<"temp_two:"<<temp_two<<endl;
 	
 	bic_value = m_data_size*log(delta) + (p+q)*log(m_data_size);
 	
@@ -712,20 +754,26 @@ void CARMA::print_his_data()
 {
 	int i=0;
 	
-	for (i=0; i<m_data_size; i++)
-	{
-		cout<<i<<":"<<m_his_data[i].value<<"|"<<m_his_data[i].time<<"|"<<m_his_data[i].flag<<endl;
-	}
+//	for (i=0; i<m_data_size; i++)
+//	{
+//		cout<<i<<":"<<m_his_data[i].value<<","<<m_his_data[i].time<<","<<m_his_data[i].flag<<endl;
+//	}
+	
+	//打印预测数据
+//	for (i=0; i<m_data_size; i++)
+//	{
+//		cout<<i<<":"<<m_his_data[i].value<<","<<m_his_data[i].time<<","<<m_his_data[i].flag<<endl;
+//	}
 	
 }
 
 
-int CARMA::init_matrix(double** matrix, int row, int column)
+int CARMA::init_matrix(double*** matrix, int row, int column)
 {
 	int i, j;
 
-	matrix = (double**)malloc(sizeof(double*)*row);
-	if (NULL == matrix)
+	*matrix = (double**)malloc(sizeof(double*)*row);
+	if (NULL == *matrix)
 	{
 		cout<<"malloc error.."<<endl;
 		return -1;
@@ -733,8 +781,8 @@ int CARMA::init_matrix(double** matrix, int row, int column)
 	
 	for (i=0; i<row; i++)
 	{
-		matrix[i] = (double*)malloc(sizeof(double)*column);
-		if (NULL == matrix[i])
+		(*matrix)[i] = (double*)malloc(sizeof(double)*column);
+		if (NULL == (*matrix)[i])
 		{
 			cout<<"malloc error.."<<endl;
 			return -1;
@@ -746,7 +794,7 @@ int CARMA::init_matrix(double** matrix, int row, int column)
 	{
 		for (j=0; j<column; j++)
 		{
-			matrix[i][j] = 0;
+			(*matrix)[i][j] = 0.00;
 		}
 	}
 
@@ -769,19 +817,19 @@ void CARMA::free_matrix(double **matrix, int row, int column)
 
 }
 
-int CARMA::trans_matrix(double** matrix, double** trans_matirx, int row, int column)
+int CARMA::trans_matrix(double** matrix, double*** trans_matirx, int row, int column)
 {
 	int i;
 	int j;
 
-	if(matrix == NULL || trans_matirx == NULL || row <= 0 || column <= 0)
+	if(matrix == NULL || (*trans_matirx) == NULL || row <= 0 || column <= 0)
 		return FAIL;
 
 	for(i = 0; i < row; i++)
 	{
 		for(j = 0; j < column; j++)
 		{
-			trans_matirx[j][i] = matrix[i][j];
+			(*trans_matirx)[j][i] = matrix[i][j];
 		}
 	}
 	return SUCC;	
@@ -836,13 +884,16 @@ double CARMA::determ_matrix(double** matrix, int row, int column)
 }
 
 
-int CARMA::inverse_matirx(double** matrix, double** inverse_matirx, int row, int column)
+int CARMA::inverse_matirx(double** matrix, double*** inverse_matirx, int row, int column)
 {
-		int i, j, x, y, k, l;
+	int i, j, x, y, k, l;
 	double **SP = NULL, **AB = NULL, **TempMatrix = NULL, X;
-	if(matrix == NULL || inverse_matirx == NULL || row <= 0 || column != row)
-		return FAIL;
 	
+	if(matrix == NULL || *inverse_matirx == NULL || row <= 0 || column != row)
+	{
+	    return FAIL;
+	}
+		
 	SP = (double **)malloc(row*sizeof(double*));
 	AB = (double **)malloc(row*sizeof(double*));
 	TempMatrix = (double **)malloc(row*sizeof(double*));
@@ -889,7 +940,7 @@ int CARMA::inverse_matirx(double** matrix, double** inverse_matirx, int row, int
 	
 }
 
-int CARMA::multiply_matrix(double** matrix1, int row1, int column1, double** matrix2, int row2, int column2, double** matrix_result)
+int CARMA::multiply_matrix(double** matrix1, int row1, int column1, double** matrix2, int row2, int column2, double*** matrix_result)
 {
 	if(column1 != row2)
 	{
@@ -903,7 +954,7 @@ int CARMA::multiply_matrix(double** matrix1, int row1, int column1, double** mat
 		{
 			for(k = 0; k < column1; k++)
 			{
-				matrix_result[i][j] += matrix1[i][k]*matrix2[k][j];
+				(*matrix_result)[i][j] += matrix1[i][k]*matrix2[k][j];
 			}
 		}
 	}
