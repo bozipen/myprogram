@@ -4,8 +4,8 @@
 using namespace std;
 
 
-#define P 3
-#define Q 3
+#define P 2
+#define Q 2
 #define FILE_NAME "test.dat"
 
 

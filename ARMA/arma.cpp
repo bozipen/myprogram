@@ -29,7 +29,7 @@ CARMA::CARMA(CDataSet& his_data, int p, int q)
 
     cout<<"p="<<m_p<<","<<"q="<<m_q<<endl;
     
-//    get_model();
+    get_model();
     
 	
 }
@@ -46,14 +46,14 @@ int CARMA::get_model()
 	int last_p = 0;
 	int last_q = 0;
 		
-	DataType min_bic  = 0.00000;
+	DataType min_bic  = 100000.00;
 	DataType temp_bic = 0.00000;
 	DataType epsinon  = 0.00001;
 		
 	//穷举法利用p,q进行参数估计
-	for (i=2; i<m_p; i++)
+	for (i=1; i<m_p; i++)
 	{
-		for (j=2; j<m_q; j++)
+		for (j=1; j<m_q; j++)
 		{
 			vector<DataType> v_p;
 			vector<DataType> v_q;
@@ -66,9 +66,9 @@ int CARMA::get_model()
 			temp_bic = get_bic_value(i, j, v_p, v_q, v_next);//根据当前p,q,参数估计值获取BIC值
 			cout<<"temp_bic="<<temp_bic<<endl;
 			
-			getchar();	
+//			getchar();	
 			//记录最小的BIC值及p,q值
-			if ( (min_bic - temp_bic > epsinon) && (min_bic - temp_bic < -epsinon) )
+			if ( min_bic - temp_bic >= epsinon )
 			{
 				min_bic = temp_bic;
 				last_p = i;
@@ -84,6 +84,8 @@ int CARMA::get_model()
 			s_bic_temp.bic_value = temp_bic;
 						
 			m_bic.push_back(s_bic_temp);
+			
+//			cout<<"p="<<i<<","<<"q="<<j<<","<<"bic_value="<<temp_bic<<endl;
 					
 		}
 		
@@ -92,6 +94,14 @@ int CARMA::get_model()
 	//记录最优的p,q值
 	m_p = last_p;
 	m_q = last_q;
+	
+	cout<<"last_p="<<last_p<<","<<"last_q="<<last_q<<endl;
+    
+    cout<<"预测结果"<<endl;
+    for (i=0; i<m_data_size; i++)
+	{
+	    cout<<i<<":"<<m_his_data[i].value<<","<<m_forest_data[i].value<<endl;
+	}
 	
 		
 	return SUCC;
@@ -220,21 +230,48 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 		YY_matrix[i][0] = mean_data[i+max_pq].value;
 	}
 	
-	//E矩阵赋值
-	
+	//E矩阵赋值	
 	for (i=0; i<q_matrix_size; i++)
 	{
 		for (j=0; j<q; j++)
 		{
-			//求E矩阵当前值对应的X的AR预测值
-			double temp = 0.0;
-			for (k=0; k<p; k++)
+			
+			double temp = 0.0;//求E矩阵当前值对应的X的AR预测值
+						
+			int index = i+max_pq-1-j;//对应索引
+			
+			if (index < p)
+			{			    			    
+			    if (index==0)
+			    {
+			        temp = mean_data[0].value;//无法计算eps，直接利用数据值
+			    }
+			    else
+			    {
+    			    //利用部分值预测
+    			    for (k=0; k<index; k++)
+        			{
+        				temp += para_matrix_p[k][0]*mean_data[i+max_pq-1-j-k-1].value;
+        			}
+			    }
+		
+			}
+			else
 			{
-				temp += para_matrix_p[k][0]*mean_data[i+max_pq-1-j-k-1].value;
+    			//利用完整值预测
+    			for (k=0; k<p; k++)
+    			{
+    				temp += para_matrix_p[k][0]*mean_data[i+max_pq-1-j-k-1].value;
+    			}
+    			
+
+     
 			}
 			
-			E_matrix[i][j] = mean_data[i+max_pq-1-j].value - temp;
-						
+//			cout<<"temp="<<temp<<endl;
+    			
+    	    E_matrix[i][j] = mean_data[i+max_pq-1-j].value - temp;
+													
 		}
 	}
 	
@@ -312,37 +349,53 @@ DataType CARMA::get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_nex
 	int i,j,k;
 	
 	DataType bic_value = 0.00;	
-	DataType delta = 0.00;	
-	DataType temp = 0.00; 
+	DataType delta = 0.00;	 
 	DataType temp_one = 0.00; 
-	int temp_two = 0;
-	
+	DataType error_ret = 10000.00;	
 	DataType sum_t = 0.00;
 	DataType eps = 0.00;
 	
-	temp_two = m_data_size - p - (p + q);
+	CData v_next_temp;
 	
-//	CData v_next;//预测值
-	CData v_eps;//预测误差
+	int temp_two = m_data_size - p - (p + q);
 	
+	CData v_eps;//预测误差值 X^-x
+	
+//	cout<<"m_data_size="<<m_data_size<<","<<"p="<<p<<","<<"q="<<q<<endl;
 	
 	for (i=0; i<m_data_size; i++)
-	{
-		if (i < p)
-		{
-			v_next.push_back(m_his_data[i].value);
-			v_eps.push_back(0.00);
-			continue;
-		}
-		
-		DataType temp = 0.00;
-		
-		for (j=0; j<p; j++)
-		{
-			temp = temp + v_p[j]*(m_his_data[i-1-j].value);//AR
-		}
-		
-		v_next.push_back(temp);
+	{		
+        DataType temp = 0.00;
+        
+        if (i < p)
+        {			    			    
+            if (i == 0)
+            {
+                temp = m_his_data[0].value;//利用数据值作为预测值
+            }
+            else
+            {
+        	    //利用部分值预测
+        	    for (j=0; j<i; j++)
+        		{
+        			temp += v_p[j]*m_his_data[i-1-j].value;
+        		}
+            }
+        
+        }
+        else
+        {
+        	//利用完整值预测
+        	for (j=0; j<p; j++)
+        	{
+        		temp += v_p[j]*m_his_data[i-1-j].value;
+        	}
+        	
+        
+        
+        }
+				
+		v_next_temp.push_back(temp);
 		
 		temp = m_his_data[i].value - temp;
 		
@@ -356,33 +409,53 @@ DataType CARMA::get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_nex
 		DataType temp_sum_p = 0.00;
 		DataType temp_sum_q = 0.00;
 		
-		temp_sum_p = v_next[i];
+		temp_sum_p = v_next_temp[i];
 		
 		if (i < q)
 		{
-			temp_sum_q = v_eps[i];
+			if (i == 0)
+			{
+			    temp_sum_q = v_eps[0];
+			}
+			else
+			{
+			    //利用部分值预测
+        	    for (j=0; j<i; j++)
+        		{
+        			temp_sum_q += v_q[j]*v_eps[i-1-j];
+        		}
+			}
+		
 		}
 		else
 		{
 			for (j=0; j<q; j++)
 			{
-				temp_sum_q = temp_sum_q + v_q[j]*(v_eps[i-1-j]);
+				temp_sum_q += v_q[j]*(v_eps[i-1-j]);
 			}
 		}
+		
+		v_next.push_back(temp_sum_p - temp_sum_q);//最终的预测值
 				
-		sum_t = sum_t + pow((temp_sum_p + temp_sum_q - (m_his_data[i].value)),2);
+		sum_t = sum_t + pow((temp_sum_p - temp_sum_q - (m_his_data[i].value)),2);
 						
 	}
 	
-	
+    cout<<"sum_t:"<<sum_t<<endl;
+    
+    if (temp_two == 0)
+	{
+	    cout<<"temp_two="<<temp_two<<endl;
+	    return error_ret;
+	}
+
 	delta = (double)sum_t/(double)temp_two;
-	
+		
 	cout<<"delta:"<<delta<<endl;
-	cout<<"temp_two:"<<temp_two<<endl;
 	
 	bic_value = m_data_size*log(delta) + (p+q)*log(m_data_size);
 	
-	
+	cout<<"bic_value:"<<bic_value<<endl;
 	
 	return bic_value;
 
@@ -840,6 +913,15 @@ double CARMA::determ_matrix(double** matrix, int row, int column)
 {	
 	int i,j,k,p,r; 
 	double X, temp = 1, temp1 = 1, s = 0, s1 = 0;
+	
+	if (row == column && column == 1)
+	{
+	    X = matrix[0][0];
+//	    cout<<"X1111111111111========"<<X<<endl;
+	    return X;
+	}
+	
+	
 	if(column == 2)
 	{
 		for(i=0;i < row;i++)
@@ -879,6 +961,7 @@ double CARMA::determ_matrix(double** matrix, int row, int column)
 		}
 		X = s-s1;
 	}
+	
 	return X;
 	
 }
@@ -886,6 +969,7 @@ double CARMA::determ_matrix(double** matrix, int row, int column)
 
 int CARMA::inverse_matirx(double** matrix, double*** inverse_matirx, int row, int column)
 {
+	
 	int i, j, x, y, k, l;
 	double **SP = NULL, **AB = NULL, **TempMatrix = NULL, X;
 	
@@ -903,6 +987,8 @@ int CARMA::inverse_matirx(double** matrix, double*** inverse_matirx, int row, in
 	{
 	    return FAIL;
 	}
+	
+//	cout<<"X================="<<X<<endl;
 		
 		
 	X = 1/X;
@@ -971,7 +1057,7 @@ void CARMA::print_matrix(double** matrix, int row, int column)
 	{
 		for(n = 0; n < column; n++)
 		{
-			cout<<matrix[m][n];
+			cout<<matrix[m][n]<<",";
 		}
 		cout<<endl;
 	}
