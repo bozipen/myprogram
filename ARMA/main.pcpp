@@ -4,10 +4,7 @@
 using namespace std;
 
 
-#define P 2
-#define Q 2
 #define FILE_NAME "test.dat"
-
 
 int connect_database(char* db_name);
 int disconnect_database();
@@ -41,6 +38,16 @@ int main(int argc, char** argv)
 	
 	
 	CARMA armaobj(his_data, P, Q);
+	
+	//
+	string time("2014-10-20 12:00:00");
+	DataType forecast_value;
+	DataType threshold;
+	
+	armaobj.get_forecast_region(time, forecast_value, threshold);
+	
+	cout<<"forecast_value="<<forecast_value<<endl;
+	cout<<"threshold="<<threshold<<endl;
 	
 
 		

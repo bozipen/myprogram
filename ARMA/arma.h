@@ -24,6 +24,17 @@
 #include <fstream>
 using namespace std;
 
+//预测模型可调参数
+const int P=3;
+const int Q=3;
+
+//动态阈值区间可调参数
+const int K=4;
+const int A_M=10;
+const int THETA=10;
+const int T=100;
+
+
 const int SUCC=0;
 const int FAIL=-1;
 
@@ -57,13 +68,15 @@ class CARMA
 		CARMA(void);
 		~CARMA();
 		
-		//接口
-		CARMA(CDataSet& his_data, int p, int q);            //预测模型接口
-		int get_threshold(int k, int A_m, int theta, int t);//动态阈值接口
 		
-		//结果输出接口
-		
+		//预测模型接口
+		CARMA(CDataSet& his_data, int p, int q);            		
+	    
+	    //获取指定时间的预测值以及预测区间
+	    int get_forecast_region(string time, DataType &forecast_value, DataType &threshold);
 
+				
+				
 	private:	
 	
 		//预测模型求解相关
@@ -71,19 +84,16 @@ class CARMA
 		DataType    get_mean_data();                                    //获取数据均值
 		void    print_his_data();                                       //打印历史数据信息
 		void    update_forest_data(CData &v_next);                      //存储预测数据
-		int get_forest_segment();                                       //根据预测中心值与动态阈值d进行最优区间预测
 		int	get_max_pq(int p, int q){ return (p > q) ? p : q; };        //获取p,q较大值
 		int	parameter_estimation(int p, int q, CData &v_p, CData &v_q); //根据p,q值，进行最小二乘参数估计
         DataType    get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_next);//根据p,q，参数值，获取BIC值	    
-	
+	    void    print_bic_data();                                       //打印BIC数据信息
 	
 	    //区间预测
-	    int get_forest_segment(string time);                           //根据时间获取预测区间
-	    int getcurrdata(string time, CDataSet& data);                  //根据时间获取当前时刻所有历史数据
-	    DataType get_forest_rate(DataType forest_value, DataType threshold, CDataSet& data);//获取当前时刻某一阈值下的预警率
-	
-		//遗忘曲线求解相关
-		DataType get_integral(int A_m, int theta, DataType a, DataType b);//根据遗忘曲线参数求曲线积分
+	    int getcurrdata(string time, CDataSet& data);                   //根据时间获取当前时刻所有历史数据
+	    DataType get_forecast_rate(DataType forecast_value, DataType threshold, CDataSet& data);//获取当前时刻某一阈值下的预警率
+		int get_threshold(int k, int A_m, int theta, int t);                //动态阈值生成，利用K均值聚类算法结合遗忘曲线模型
+		DataType get_integral(int A_m, int theta, DataType a, DataType b);  //根据遗忘曲线参数求曲线积分
 
 
 		//聚类相关方法
@@ -96,10 +106,10 @@ class CARMA
 
 		//矩阵运算相关
 		int init_matrix(double*** matrix, int row, int column);                              //初始化矩阵
-		void    free_matrix(double **matrix, int row, int column);                          //释放矩阵
-		void    print_matrix(double** matrix, int row, int column);                         //打印矩阵
+		void    free_matrix(double **matrix, int row, int column);                           //释放矩阵
+		void    print_matrix(double** matrix, int row, int column);                          //打印矩阵
 		int trans_matrix(double** matrix, double*** trans_matirx, int row, int column);      //矩阵转置矩阵
-		double  determ_matrix(double** matrix, int row, int column);                        //矩阵行列式求值
+		double  determ_matrix(double** matrix, int row, int column);                         //矩阵行列式求值
 		int inverse_matirx(double** matrix, double*** inverse_matirx, int row, int column);  //求逆矩阵
 		int multiply_matrix(double** matrix1, int row1, int column1, double** matrix2, int row2, int column2, double*** matrix_result);//矩阵相乘
 
@@ -109,11 +119,13 @@ class CARMA
 		int	m_p;				 //ARMA模型p值
 		int	m_q;				 //ARMA模型q值				
 		CDataSet m_his_data;	 //历史数据
-		CDataSet m_forest_data;	 //预测数据
+		CDataSet m_mean_data;	 //均值处理后历史数据
+		CDataSet m_forecast_data;//预测数据
 		int m_data_size;		 //历史数据的长度		
 		CData m_thresholds;		 //阈值
 		DataType m_min_threshold;//阈值下限
 		DataType m_max_threshold;//阈值上限
+		DataType m_data_mean;    //均值
 		CBICSet m_bic;			 //BIC值集合
 
 
