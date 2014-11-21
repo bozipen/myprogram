@@ -1,7 +1,6 @@
 #include <arma.h>
 
 
-
 CARMA::CARMA(void)
 {
     
@@ -19,10 +18,10 @@ CARMA::CARMA(CDataSet& his_data, int p, int q)
 	m_forecast_data.assign(his_data.begin(), his_data.end());
 	
 	m_data_size = m_his_data.size();
-	cout<<"m_data_size="<<m_data_size<<endl;
+	cout<<"输入数据大小：m_data_size="<<m_data_size<<endl;
 
 	
-	print_his_data();
+//	print_his_data();
 		
 	m_p = p;
 	m_q = q;
@@ -31,11 +30,96 @@ CARMA::CARMA(CDataSet& his_data, int p, int q)
     
     get_model();
     
-    print_bic_data();
+//    print_bic_data();
 
 
+}
+
+int CARMA::get_forecast_graph(CBICSet& bic_set, CDataSet& forecast_data)
+{
     
+    bic_set.assign(m_bic.begin(), m_bic.end());
+     
+    forecast_data.assign(m_forecast_data.begin(), m_forecast_data.end());
+       
+    return 0;
+}
+
+int CARMA::get_forecast_region(int k, int A_m, int theta, int t, string time, DataType &forecast_value, DataType &threshold)
+{
+    
+    int i=0; 
+    for (i=0; i<m_data_size; i++)
+    {
+        //具体时间格式需要确定
+        if (time.compare(m_forecast_data[i].time) == 0)
+        {
+            forecast_value = m_forecast_data[i].value;
+            break;            
+        }
+    }
+    
+    cout<<"time="<<time<<endl;
+    cout<<"forecast_value="<<forecast_value<<endl;
+    
+    
+    int data_size = 0;
+    CDataSet currdata;
+    
+    //获取当前时刻所有历史数据
+    data_size = getcurrdata(time, currdata);
+    if (data_size < 1)
+    {
+        cout<<"getcurrdata fail"<<endl;
+        return FAIL;
+    }
+    
+    
+    //打印当前数据
+    cout<<"当前阈值数据为："<<endl;
+	for (i=0; i<data_size; i++)
+	{
+		cout<<i<<":"<<currdata[i].value<<","<<currdata[i].time<<","<<currdata[i].flag<<endl;
+	}
 	
+    
+    
+    
+    //利用K均值聚类结合遗忘曲线生成所有动态阈值
+    get_threshold(k, A_m, theta, t);
+    
+     
+    DataType forecast_rate = 0.00;
+    DataType temp_rate = 0.00;
+    DataType epsinon = 0.0001;
+    DataType best_threshold = 0.00;
+    
+    //获取预警率最大的阈值
+    int len = m_thresholds.size(); 
+    for (i=0; i<len; i++)
+    {
+        temp_rate = get_forecast_rate(forecast_value, m_thresholds[i], currdata);
+        
+        cout<<"预测值="<<forecast_value<<"阈值="<<m_thresholds[i]<<"预警率="<<temp_rate<<endl;
+        
+        
+        if ( (temp_rate - forecast_rate) >= epsinon )
+        {
+            forecast_rate = temp_rate;
+            best_threshold = m_thresholds[i];
+        }
+               
+    }
+    
+    threshold = best_threshold;
+    
+    cout<<"best_threshold="<<best_threshold<<endl;
+    
+    m_min_threshold = forecast_value - (DataType)best_threshold/(DataType)2;
+    m_max_threshold = forecast_value + (DataType)best_threshold/(DataType)2;
+    
+       
+    return SUCC;    
 }
 
 int CARMA::get_model()
@@ -55,14 +139,14 @@ int CARMA::get_model()
 	DataType epsinon  = 0.00001;
 		
 	//穷举法利用p,q进行参数估计
-	for (i=1; i<m_p; i++)
+	for (i=1; i<=m_p; i++)
 	{
-		for (j=1; j<m_q; j++)
+		for (j=1; j<=m_q; j++)
 		{
 			vector<DataType> v_p;
 			vector<DataType> v_q;
 			
-			cout<<"parameter_estimation"<<endl;
+//			cout<<"parameter_estimation"<<endl;
 					
 			parameter_estimation(i, j, v_p, v_q);//参数估计
 						
@@ -123,10 +207,10 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	int i,j,k;
 	
 	//数据均值
-//	double mean_value = 0.00;
+//	DataType mean_value = 0.00;
 	m_data_mean = get_mean_data();
 	
-	cout<<"m_data_mean="<<m_data_mean<<endl;
+	cout<<"数据均值：m_data_mean="<<m_data_mean<<endl;
 	
 //	CDataSet m_mean_data;
 	
@@ -136,7 +220,7 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	for (i=0; i<m_data_size; i++)
 	{
 		m_mean_data[i].value = m_mean_data[i].value - m_data_mean;
-		cout<<i<<":"<<m_mean_data[i].value<<","<<m_mean_data[i].time<<","<<m_mean_data[i].flag<<endl;
+//		cout<<i<<":"<<m_mean_data[i].value<<","<<m_mean_data[i].time<<","<<m_mean_data[i].flag<<endl;
 	}
 	
 
@@ -154,9 +238,9 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	init_matrix(&matrix_temp2, p, p);                 //(X_T*X)^
 	init_matrix(&matrix_temp3, p, p_matrix_size);     //(X_T*X)^*X_T
 	
-	cout<<"p_matrix_size="<<p_matrix_size<<endl;
-	cout<<"p="<<p<<endl;
-	cout<<"q="<<q<<endl;
+//	cout<<"p_matrix_size="<<p_matrix_size<<endl;
+//	cout<<"p="<<p<<endl;
+//	cout<<"q="<<q<<endl;
 	
 	//Y矩阵赋值
 	for (i=0; i<p_matrix_size; i++)
@@ -164,8 +248,8 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 		Y_matrix[i][0] = m_mean_data[i+p].value;
 	}
 	
-	cout<<"Y_matrix:"<<endl;
-	print_matrix(Y_matrix, p_matrix_size, 1);
+//	cout<<"Y_matrix:"<<endl;
+//	print_matrix(Y_matrix, p_matrix_size, 1);
 
 		
 	//X矩阵赋值
@@ -177,34 +261,35 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 		}	
 	}
 
-	cout<<"X_matrix:"<<endl;
-	print_matrix(X_matrix, p_matrix_size, p);
+//	cout<<"X_matrix:"<<endl;
+//	print_matrix(X_matrix, p_matrix_size, p);
 	
 	
 
 	//最小二乘矩阵求解AR参数
 	trans_matrix(X_matrix, &X_matrix_trans, p_matrix_size, p);                                    //X_T
-	cout<<"X_matrix_trans:"<<endl;
-	print_matrix(X_matrix_trans, p, p_matrix_size);
-    
+
+//	cout<<"X_matrix_trans:"<<endl;
+//	print_matrix(X_matrix_trans, p, p_matrix_size);
+//    
 	
 	multiply_matrix(X_matrix_trans, p, p_matrix_size, X_matrix, p_matrix_size, p, &matrix_temp1); //X_T*X	
 	
-	cout<<"matrix_temp1:"<<endl;
-	print_matrix(matrix_temp1, p, p);
+//	cout<<"matrix_temp1:"<<endl;
+//	print_matrix(matrix_temp1, p, p);
      
 	
 	inverse_matirx(matrix_temp1, &matrix_temp2, p, p);                                            //(X_T*X)^
 	
-    cout<<"matrix_temp2:"<<endl;
-	print_matrix(matrix_temp2, p, p);
+//  cout<<"matrix_temp2:"<<endl;
+//	print_matrix(matrix_temp2, p, p);
     
  
 	
 	multiply_matrix(matrix_temp2, p, p, X_matrix_trans, p, p_matrix_size, &matrix_temp3);         //(X_T*X)^ * X_T	
 	
-	cout<<"matrix_temp3:"<<endl;
-	print_matrix(matrix_temp3, p, p_matrix_size);
+//	cout<<"matrix_temp3:"<<endl;
+//	print_matrix(matrix_temp3, p, p_matrix_size);
     
  	
 	multiply_matrix(matrix_temp3, p, p_matrix_size, Y_matrix, p_matrix_size, 1, &para_matrix_p);  //(X_T*X)^ * X_T * Y
@@ -240,7 +325,7 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 		for (j=0; j<q; j++)
 		{
 			
-			double temp = 0.0;//求E矩阵当前值对应的X的AR预测值
+			DataType temp = 0.0;//求E矩阵当前值对应的X的AR预测值
 						
 			int index = i+max_pq-1-j;//对应索引
 			
@@ -281,11 +366,11 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 	}
 	
 	
-	cout<<"YY_matrix:"<<endl;
-	print_matrix(YY_matrix, q_matrix_size, 1);
+//	cout<<"YY_matrix:"<<endl;
+//	print_matrix(YY_matrix, q_matrix_size, 1);
 	
-	cout<<"E_matrix:"<<endl;
-	print_matrix(E_matrix, q_matrix_size, q);
+//	cout<<"E_matrix:"<<endl;
+//	print_matrix(E_matrix, q_matrix_size, q);
 	
 
 		
@@ -343,7 +428,7 @@ DataType CARMA::get_mean_data()
 		mean_data = mean_data + m_his_data[i].value;			
 	}
 		
-	mean_data = (double)mean_data/(double)m_data_size;
+	mean_data = (DataType)mean_data/(DataType)m_data_size;
 
 	return mean_data;
 }
@@ -368,7 +453,7 @@ DataType CARMA::get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_nex
 	
 //	cout<<"m_data_size="<<m_data_size<<","<<"p="<<p<<","<<"q="<<q<<endl;
 	
-	for (i=0; i<m_data_size; i++)
+	for (i=0; i<=m_data_size; i++)
 	{		
         DataType temp = 0.00;
         
@@ -388,7 +473,7 @@ DataType CARMA::get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_nex
             }
         
         }
-        else
+        else if (i<m_data_size)
         {
         	//利用完整值预测
         	for (j=0; j<p; j++)
@@ -396,6 +481,14 @@ DataType CARMA::get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_nex
         		temp += v_p[j]*m_mean_data[i-1-j].value;
         	}
         	              
+        }
+        else
+        {
+            //利用完整值预测
+        	for (j=0; j<p; j++)
+        	{
+        		temp += v_p[j]*m_mean_data[i-1-j].value;
+        	}
         }
 				
 		v_next_temp.push_back(temp);
@@ -452,13 +545,31 @@ DataType CARMA::get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_nex
 	    return error_ret;
 	}
 
-	delta = (double)sum_t/(double)temp_two;
+	delta = (DataType)sum_t/(DataType)temp_two;
 		
 	cout<<"delta:"<<delta<<endl;
 	
 	bic_value = m_data_size*log(delta) + (p+q)*log(m_data_size);
 	
 	cout<<"bic_value:"<<bic_value<<endl;
+	
+	
+	//预测未来值
+	DataType sum_p = 0;
+	DataType sum_q = 0;
+    for (j=0; j<p; j++)
+	{
+		sum_p += v_p[j]*m_mean_data[m_data_size-1-j].value;
+	}
+	
+	for (j=0; j<q; j++)
+	{
+		sum_q += v_q[j]*(v_eps[m_data_size-1-j]);
+	}
+	
+	m_next = sum_p + sum_q + m_data_mean;
+	
+	cout<<"11111111111111111-----------m_next="<<m_next<<endl;
 	
 	return bic_value;
 
@@ -479,27 +590,39 @@ void CARMA::update_forest_data(CData &v_next)
 int CARMA::get_threshold(int k, int A_m, int theta, int t)
 {
 	int i,j,ii,jj,kk;
-	int curve_value = 0;
+	
+	int A_m_end = A_m*10;//刻度为1/10
+	int theta_end = theta*10;
+	
+	DataType curr_A_m = 0.1;
+	DataType curr_theta = 0.1;
+	
 	
 	DataType integral_value = 0.00;
-	DataType epsinon  = 0.01;
+	DataType epsinon  = 0.001;
 	DataType point_k = 0.00;
 	
-	for (i=1; i<k; i++)
+	for (i=2; i<=k; i++)
 	{
 		DataType means[i];//记录K个聚类均值
 		k_means(i, means);//K均值聚类算法
 				
-		for (ii=1; ii<A_m; ii++)
+		for (ii=0; ii<=A_m_end; ii++)
 		{
-			for (jj=1; jj<theta; jj++)
-			{
+			curr_A_m =  0.1 + (double)ii/(double)10;
+			
+			for (jj=0; jj<=theta_end; jj++)
+			{				
+				curr_theta = 0.1 + (double)jj/(double)10;
+				
 				for (kk=1; kk<t; kk++)
-				{			
-					integral_value = get_integral(ii, jj, (DataType)0, (DataType)kk);
+				{								
+										
+					integral_value = get_integral(curr_A_m, curr_theta, (DataType)0, (DataType)kk);
 					
-//					cout<<"integral_value="<<integral_value<<endl;
-					
+//					cout<<"kk="<<kk<<","<<"integral_value="<<integral_value<<endl;
+//					cout<<"curr_A_m="<<curr_A_m<<","<<"curr_theta="<<curr_theta<<endl;
+				
 					//判断积分与1的关系，在误差的范围内
 					if ( fabs(integral_value - 1) <= epsinon )
 					{
@@ -512,10 +635,12 @@ int CARMA::get_threshold(int k, int A_m, int theta, int t)
 						for (j=1; j<=i; j++)
 						{
 						    //(kk*j)/i  (k-1)*t/k				
-							curr = get_integral(ii, jj, (DataType)0, (DataType)(kk*j)/i);							
+							curr = get_integral(curr_A_m, curr_theta, (DataType)0, (DataType)(kk*j)/i);							
 																									
 							diff = curr - before;
-							before = curr;													
+							before = curr;	
+							
+//							cout<<"j="<<j<<","<<"diff="<<diff<<endl;											
 													
 							temp += diff*means[j-1];
 						}
@@ -523,89 +648,33 @@ int CARMA::get_threshold(int k, int A_m, int theta, int t)
 						//将当前计算的d值保存
 						m_thresholds.push_back(temp);
 						
-						cout<<"K="<<i<<","<<"A_m="<<ii<<","<<"theta="<<jj<<","<<"t="<<kk<<","<<"integral_value="<<integral_value<<endl;
+//						cout<<"K="<<i<<","<<"curr_A_m="<<curr_A_m<<","<<"curr_theta="<<curr_theta<<","<<"t="<<kk<<","<<"integral_value="<<integral_value<<endl;
 						
-						cout<<"temp="<<temp<<endl;
+//						cout<<"temp="<<temp<<endl;
 											
 						break;
+
+                     
+                        
 					}
+				
 									
 				}
+				
 				
 			}
 			
 		}
 					
 	}
+	
+	cout<<"生成的动态阈值个数为:"<<m_thresholds.size()<<endl;
 
 
 	return SUCC;
 
 }
 
-int CARMA::get_forecast_region(string time, DataType &forecast_value, DataType &threshold)
-{
-    
-    int i=0; 
-    for (i=0; i<m_data_size; i++)
-    {
-        //具体时间格式需要确定
-        if (time.compare(m_forecast_data[i].time) == 0)
-        {
-            forecast_value = m_forecast_data[i].value;
-            break;            
-        }
-    }
-    
-    cout<<"time="<<time<<endl;
-    cout<<"forecast_value="<<forecast_value<<endl;
-    
-    
-    int data_size = 0;
-    CDataSet currdata;
-    
-    //获取当前时刻所有历史数据
-    data_size = getcurrdata(time, currdata);
-    if (data_size < 1)
-    {
-        return FAIL;
-    }
-    
-    
-    //利用K均值聚类结合遗忘曲线生成所有动态阈值
-    get_threshold(K, A_M, THETA, T);
-    
-    
-      
-    DataType forecast_rate = 0.00;
-    DataType temp_rate = 0.00;
-    DataType epsinon = 0.0001;
-    DataType best_threshold = 0.00;
-    
-    //获取预警率最大的阈值
-    int len = m_thresholds.size(); 
-    for (i=0; i<len; i++)
-    {
-        temp_rate = get_forecast_rate(forecast_value, m_thresholds[i], currdata);
-        
-        if ( (temp_rate - forecast_rate) >= epsinon )
-        {
-            forecast_rate = temp_rate;
-            best_threshold = m_thresholds[i];
-        }
-               
-    }
-    
-    threshold = best_threshold;
-    
-    cout<<"best_threshold="<<best_threshold<<endl;
-    
-    m_min_threshold = forecast_value - (DataType)best_threshold/(DataType)2;
-    m_max_threshold = forecast_value + (DataType)best_threshold/(DataType)2;
-    
-       
-    return SUCC;    
-}
 
 int CARMA::getcurrdata(string time, CDataSet& data)
 {
@@ -635,8 +704,10 @@ DataType CARMA::get_forecast_rate(DataType forecast_value, DataType threshold, C
     
     int num_a, num_b, num_c, num_d; 
     
-    min_value = forecast_value - (DataType)threshold/(DataType)2;
-    max_value = forecast_value + (DataType)threshold/(DataType)2;
+    num_a = num_b = num_c = num_d = 0;
+    
+    min_value = forecast_value - threshold;
+    max_value = forecast_value + threshold;
     
     int i;
     int data_size = data.size();
@@ -644,7 +715,7 @@ DataType CARMA::get_forecast_rate(DataType forecast_value, DataType threshold, C
     {
         if ( (data[i].value-min_value >= epsinon) && (max_value-data[i].value >= epsinon) )
         {
-            if (data[i].flag == 0)
+            if (data[i].flag == 1)
             {
                 num_a++;
             }
@@ -655,7 +726,7 @@ DataType CARMA::get_forecast_rate(DataType forecast_value, DataType threshold, C
         }
         else
         {
-            if (data[i].flag == 0)
+            if (data[i].flag == 1)
             {
                 num_c++;
             }
@@ -667,7 +738,9 @@ DataType CARMA::get_forecast_rate(DataType forecast_value, DataType threshold, C
                                
     }
     
-    rate = (DataType)(num_a+num_b+num_c+num_d)/(DataType)(num_a+num_b+num_c+num_d);
+    rate = (DataType)(num_a+num_d)/(DataType)(num_a+num_b+num_c+num_d);
+    
+    cout<<"num_a,num_b,num_c,num_d分别为："<<num_a<<","<<num_b<<","<<num_c<<","<<num_d<<endl;
     
     return rate;
     
@@ -675,25 +748,29 @@ DataType CARMA::get_forecast_rate(DataType forecast_value, DataType threshold, C
 
 
 
-DataType CARMA::get_integral(int A_m, int theta, DataType a, DataType b)
+DataType CARMA::get_integral(DataType A_m, DataType theta, DataType a, DataType b)
 {
 	int i, j;
 	
+	
+	
 	DataType value;
 	
-	double s,x,h;
+	DataType s,x,h;
 	
-	int n=100;//积分和划分区间
+	int n=200;//积分和划分区间
 	
-	h=fabs(b-a)/n;
-	
+	h=(DataType)(b-a)/(DataType)n;
+		
 	s=0;
-	for(i=1;i<=n;i++)
+	for(i=0;i<n;i++)
 	{
-		x=a+i*h;
-		s=s + A_m*(exp(-(theta*x)));	
+		x=a+i*h;		
+		s += A_m*(exp(-(theta*x)));
 	}
+	
 	s=s*h;
+	
 	
 	return s;
 	
@@ -708,14 +785,41 @@ void CARMA::k_means(int k, DataType means[])
 		return;
 	}
 	
+	DataType epsinon = 0.01;
+
+	
 	cout<<"K均值聚类算法:"<<k<<endl;
 	
 	vector<Data> clusters[k];
 	
-	int i=0;
-	for(i=0; i<k; i++)
-	{
-		means[i]=m_his_data[i].value;
+	//K均值聚类需要从数据中选取K个不同的值作为初始均值
+	int i, j, m;
+	means[0] = m_his_data[0].value;
+	for(i=1; i<k; i++)
+	{		
+		DataType temp = 0.00;
+	    for (j=1; j<m_data_size; j++)
+	    {
+	        temp = m_his_data[j].value;
+//	        cout<<"temp="<<temp<<endl;
+	        
+	        for (m=0; m<i; m++)
+	        {
+	            if (fabs(temp - means[m]) <= epsinon)//有重复的
+	            {
+	                break;
+	            }
+	        }
+	        
+	        if (m == i)
+	        {
+	            means[i] = temp;
+	            break;
+	        }
+	    }	
+	    
+	    cout<<"means["<<i<<"]"<<means[i]<<endl;
+
 	}
 	
 	
@@ -728,22 +832,20 @@ void CARMA::k_means(int k, DataType means[])
 	}
 	
 	//输出刚开始的簇
-	for(lable=0;lable<k;lable++)
-	{
-		cout<<"第"<<lable+1<<"个簇："<<endl;
-		vector<Data> t = clusters[lable];
-		for (i = 0; i< t.size(); i++)
-		{
-			cout<<"("<<t[i].value<<","<<t[i].time<<")"<<"   ";
-		}	
-		cout<<endl;
-	}
+//	for(lable=0;lable<k;lable++)
+//	{
+//		cout<<"第"<<lable+1<<"个簇："<<endl;
+//		vector<Data> t = clusters[lable];
+//		for (i = 0; i< t.size(); i++)
+//		{
+//			cout<<"("<<t[i].value<<","<<t[i].time<<")"<<"   ";
+//		}	
+//		cout<<endl;
+//	}
 	
 	DataType oldVar=-1;
 	DataType newVar=getvar(k,clusters,means);
-	
-	DataType epsinon = 0.01;
-	
+		
 	while(fabs(newVar - oldVar) >= epsinon) //当新旧函数值相差不到epsinon即准则函数值不发生明显变化时，算法终止
 	{
 		//更新每个簇的中心点
@@ -771,16 +873,16 @@ void CARMA::k_means(int k, DataType means[])
 		}
 		
 		//输出当前的簇
-		for(lable=0;lable<k;lable++)
-		{
-			cout<<"第"<<lable+1<<"个簇："<<endl;
-			vector<Data> t = clusters[lable];
-			for (i = 0; i< t.size(); i++)
-			{
-				cout<<"("<<t[i].value<<","<<t[i].time<<")"<<"   ";
-			}	
-			cout<<endl;
-		}
+//		for(lable=0;lable<k;lable++)
+//		{
+//			cout<<"第"<<lable+1<<"个簇："<<endl;
+//			vector<Data> t = clusters[lable];
+//			for (i = 0; i< t.size(); i++)
+//			{
+//				cout<<"("<<t[i].value<<","<<t[i].time<<")"<<"   ";
+//			}	
+//			cout<<endl;
+//		}
 	}
 
 	
@@ -792,12 +894,16 @@ int CARMA::getcluster(int k, DataType means[],Data tuple)
 {
 	DataType dist = getdistXY(means[0],tuple);
 	DataType tmp;
+	DataType eps = 0.0001;
+	
+//	cout<<"dist="<<dist<<endl;
 	
 	int label=0;//标示属于哪一个簇
 	for(int i=1;i<k;i++)
 	{
 		tmp = getdistXY(means[i], tuple);
-		if(tmp < dist) 
+//		cout<<"tmp="<<tmp<<endl;
+		if(dist - tmp >= eps) 
 		{
 			dist = tmp;
 			label = i;
@@ -810,7 +916,7 @@ int CARMA::getcluster(int k, DataType means[],Data tuple)
 //获得给定簇集的平方误差
 DataType CARMA::getvar(int k, vector<Data> clusters[],DataType means[])
 {
-	DataType var = 0;
+	DataType var = 0.00;
 	for (int i = 0; i < k; i++)
 	{
 		vector<Data> t = clusters[i];
@@ -826,10 +932,14 @@ DataType CARMA::getvar(int k, vector<Data> clusters[],DataType means[])
 //获得当前簇的均值（质心）
 DataType CARMA::getmeans(vector<Data> cluster)
 {
-	
-	int num = cluster.size();
 	DataType means = 0.00;
 	DataType temp;
+		
+	int num = cluster.size();
+	if (num == 0)
+	{
+	    return means;
+	}
 	
 	for (int i = 0; i < num; i++)
 	{
@@ -882,11 +992,11 @@ void CARMA::print_bic_data()
 }
 
 
-int CARMA::init_matrix(double*** matrix, int row, int column)
+int CARMA::init_matrix(DataType*** matrix, int row, int column)
 {
 	int i, j;
 
-	*matrix = (double**)malloc(sizeof(double*)*row);
+	*matrix = (DataType**)malloc(sizeof(DataType*)*row);
 	if (NULL == *matrix)
 	{
 		cout<<"malloc error.."<<endl;
@@ -895,7 +1005,7 @@ int CARMA::init_matrix(double*** matrix, int row, int column)
 	
 	for (i=0; i<row; i++)
 	{
-		(*matrix)[i] = (double*)malloc(sizeof(double)*column);
+		(*matrix)[i] = (DataType*)malloc(sizeof(DataType)*column);
 		if (NULL == (*matrix)[i])
 		{
 			cout<<"malloc error.."<<endl;
@@ -917,7 +1027,7 @@ int CARMA::init_matrix(double*** matrix, int row, int column)
 	
 }
 
-void CARMA::free_matrix(double **matrix, int row, int column)
+void CARMA::free_matrix(DataType **matrix, int row, int column)
 {
 	int i=0;
 	for (i=0; i<row; i++) 
@@ -931,17 +1041,18 @@ void CARMA::free_matrix(double **matrix, int row, int column)
 
 }
 
-int CARMA::trans_matrix(double** matrix, double*** trans_matirx, int row, int column)
+int CARMA::trans_matrix(DataType** matrix, DataType*** trans_matirx, int row, int column)
 {
-	int i;
-	int j;
+	int i, j;
 
 	if(matrix == NULL || (*trans_matirx) == NULL || row <= 0 || column <= 0)
-		return FAIL;
-
-	for(i = 0; i < row; i++)
 	{
-		for(j = 0; j < column; j++)
+	    return FAIL;
+	}
+
+	for(i=0; i<row; i++)
+	{
+		for(j=0; j<column; j++)
 		{
 			(*trans_matirx)[j][i] = matrix[i][j];
 		}
@@ -950,15 +1061,14 @@ int CARMA::trans_matrix(double** matrix, double*** trans_matirx, int row, int co
 	
 }
 
-double CARMA::determ_matrix(double** matrix, int row, int column)
+DataType CARMA::determ_matrix(DataType** matrix, int row, int column)
 {	
 	int i,j,k,p,r; 
-	double X, temp = 1, temp1 = 1, s = 0, s1 = 0;
+	DataType X, temp = 1, temp1 = 1, s = 0, s1 = 0;
 	
 	if (row == column && column == 1)
 	{
 	    X = matrix[0][0];
-//	    cout<<"X1111111111111========"<<X<<endl;
 	    return X;
 	}
 	
@@ -979,11 +1089,17 @@ double CARMA::determ_matrix(double** matrix, int row, int column)
 		{
 
 			for(i=0,j=k; i<row && j<column; i++,j++)
-				temp *= matrix[i][j];
+			{
+			    temp *= matrix[i][j];
+			}
+				
 			if(row - i)
 			{
 				for(p = row-i, r = row-1; p > 0; p--,r--)
-					temp *= matrix[r][p-1];
+				{
+				    temp *= matrix[r][p-1];
+				}
+					
 			}
 			s += temp;
 			temp = 1;
@@ -1008,20 +1124,20 @@ double CARMA::determ_matrix(double** matrix, int row, int column)
 }
 
 
-int CARMA::inverse_matirx(double** matrix, double*** inverse_matirx, int row, int column)
+int CARMA::inverse_matirx(DataType** matrix, DataType*** inverse_matirx, int row, int column)
 {
 	
 	int i, j, x, y, k, l;
-	double **SP = NULL, **AB = NULL, **TempMatrix = NULL, X;
+	DataType **SP = NULL, **AB = NULL, **TempMatrix = NULL, X;
 	
 	if(matrix == NULL || *inverse_matirx == NULL || row <= 0 || column != row)
 	{
 	    return FAIL;
 	}
 		
-	SP = (double **)malloc(row*sizeof(double*));
-	AB = (double **)malloc(row*sizeof(double*));
-	TempMatrix = (double **)malloc(row*sizeof(double*));
+	SP = (DataType **)malloc(row*sizeof(DataType*));
+	AB = (DataType **)malloc(row*sizeof(DataType*));
+	TempMatrix = (DataType **)malloc(row*sizeof(DataType*));
 	
 	X = determ_matrix(matrix, row, column);
 	if(X == 0)
@@ -1029,16 +1145,14 @@ int CARMA::inverse_matirx(double** matrix, double*** inverse_matirx, int row, in
 	    return FAIL;
 	}
 	
-//	cout<<"X================="<<X<<endl;
-		
 		
 	X = 1/X;
 	
 	for(i = 0; i < row; i++) 
 	{
-		SP[i] = (double *)malloc(column*sizeof(double));
-		AB[i] = (double *)malloc(column*sizeof(double));
-		TempMatrix[i] = (double *)malloc(column*sizeof(double));
+		SP[i] = (DataType *)malloc(column*sizeof(DataType));
+		AB[i] = (DataType *)malloc(column*sizeof(DataType));
+		TempMatrix[i] = (DataType *)malloc(column*sizeof(DataType));
 	}
 
 	//求矩阵伴随矩阵
@@ -1067,7 +1181,7 @@ int CARMA::inverse_matirx(double** matrix, double*** inverse_matirx, int row, in
 	
 }
 
-int CARMA::multiply_matrix(double** matrix1, int row1, int column1, double** matrix2, int row2, int column2, double*** matrix_result)
+int CARMA::multiply_matrix(DataType** matrix1, int row1, int column1, DataType** matrix2, int row2, int column2, DataType*** matrix_result)
 {
 	if(column1 != row2)
 	{
@@ -1091,7 +1205,7 @@ int CARMA::multiply_matrix(double** matrix1, int row1, int column1, double** mat
 }
 
 
-void CARMA::print_matrix(double** matrix, int row, int column)
+void CARMA::print_matrix(DataType** matrix, int row, int column)
 {
 	int m, n;
 	for(m = 0; m < row; m++)

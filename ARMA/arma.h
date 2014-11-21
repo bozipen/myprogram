@@ -4,7 +4,7 @@
        1.
        2.
        3.
-* Author:maxb
+* Author:
 * Creation Date:2014-11-04
 * Revision history:
 *      1.
@@ -24,17 +24,6 @@
 #include <iostream>
 #include <fstream>
 using namespace std;
-
-//预测模型可调参数
-const int P=3;
-const int Q=3;
-
-//动态阈值区间可调参数
-const int K=4;
-const int A_M=10;
-const int THETA=10;
-const int T=100;
-
 
 const int SUCC=0;
 const int FAIL=-1;
@@ -57,7 +46,7 @@ typedef struct
 }S_BIC;
 
 
-typedef vector<DataType> CData;     //序列数据集合
+typedef vector<DataType> CData;     //数据值集合
 typedef vector<Data>     CDataSet;  //序列数据集合
 typedef vector<S_BIC>    CBICSet;   //BIC集合
 
@@ -68,13 +57,13 @@ class CARMA
 	public:
 		CARMA(void);
 		~CARMA();
-		
-		
+				
 		//预测模型接口
-		CARMA(CDataSet& his_data, int p, int q);            		
-	    
-	    //获取指定时间的预测值以及预测区间
-	    int get_forecast_region(string time, DataType &forecast_value, DataType &threshold);
+		CARMA(CDataSet& his_data, int p, int q);	
+		//预测BIC、预测误差图接口
+		int get_forecast_graph(CBICSet& bic_set, CDataSet& forecast_data);     			    
+	    //动态阈值接口
+	    int get_forecast_region(int k, int A_m, int theta, int t, string time, DataType &forecast_value, DataType &threshold);
 
 				
 				
@@ -85,7 +74,7 @@ class CARMA
 		DataType    get_mean_data();                                    //获取数据均值
 		void    print_his_data();                                       //打印历史数据信息
 		void    update_forest_data(CData &v_next);                      //存储预测数据
-		int	get_max_pq(int p, int q){ return (p > q) ? p : q; };        //获取p,q较大值
+		int	get_max_pq(int p, int q){ return (p > q) ? p : q; };        //p,q较大值
 		int	parameter_estimation(int p, int q, CData &v_p, CData &v_q); //根据p,q值，进行最小二乘参数估计
         DataType    get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_next);//根据p,q，参数值，获取BIC值	    
 	    void    print_bic_data();                                       //打印BIC数据信息
@@ -94,7 +83,7 @@ class CARMA
 	    int getcurrdata(string time, CDataSet& data);                   //根据时间获取当前时刻所有历史数据
 	    DataType get_forecast_rate(DataType forecast_value, DataType threshold, CDataSet& data);//获取当前时刻某一阈值下的预警率
 		int get_threshold(int k, int A_m, int theta, int t);                //动态阈值生成，利用K均值聚类算法结合遗忘曲线模型
-		DataType get_integral(int A_m, int theta, DataType a, DataType b);  //根据遗忘曲线参数求曲线积分
+		DataType get_integral(DataType A_m, DataType theta, DataType a, DataType b);  //根据遗忘曲线参数求曲线积分
 
 
 		//聚类相关方法
@@ -106,13 +95,13 @@ class CARMA
 
 
 		//矩阵运算相关
-		int init_matrix(double*** matrix, int row, int column);                              //初始化矩阵
-		void    free_matrix(double **matrix, int row, int column);                           //释放矩阵
-		void    print_matrix(double** matrix, int row, int column);                          //打印矩阵
-		int trans_matrix(double** matrix, double*** trans_matirx, int row, int column);      //矩阵转置矩阵
-		double  determ_matrix(double** matrix, int row, int column);                         //矩阵行列式求值
-		int inverse_matirx(double** matrix, double*** inverse_matirx, int row, int column);  //求逆矩阵
-		int multiply_matrix(double** matrix1, int row1, int column1, double** matrix2, int row2, int column2, double*** matrix_result);//矩阵相乘
+		int init_matrix(DataType*** matrix, int row, int column);                              //初始化矩阵
+		void    free_matrix(DataType **matrix, int row, int column);                           //释放矩阵
+		void    print_matrix(DataType** matrix, int row, int column);                          //打印矩阵
+		int trans_matrix(DataType** matrix, DataType*** trans_matirx, int row, int column);    //矩阵转置矩阵
+		DataType  determ_matrix(DataType** matrix, int row, int column);                       //矩阵行列式求值
+		int inverse_matirx(DataType** matrix, DataType*** inverse_matirx, int row, int column);//求逆矩阵
+		int multiply_matrix(DataType** matrix1, int row1, int column1, DataType** matrix2, int row2, int column2, DataType*** matrix_result);//矩阵相乘
 
 
 
@@ -127,6 +116,7 @@ class CARMA
 		DataType m_min_threshold;//阈值下限
 		DataType m_max_threshold;//阈值上限
 		DataType m_data_mean;    //均值
+		DataType m_next;         //预测未知点
 		CBICSet m_bic;			 //BIC值集合
 
 
