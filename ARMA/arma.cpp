@@ -82,9 +82,7 @@ int CARMA::get_forecast_region(int k, int A_m, int theta, int t, string time, Da
 		cout<<i<<":"<<currdata[i].value<<","<<currdata[i].time<<","<<currdata[i].flag<<endl;
 	}
 	
-    
-    
-    
+       
     //利用K均值聚类结合遗忘曲线生成所有动态阈值
     get_threshold(k, A_m, theta, t);
     
@@ -100,7 +98,7 @@ int CARMA::get_forecast_region(int k, int A_m, int theta, int t, string time, Da
     {
         temp_rate = get_forecast_rate(forecast_value, m_thresholds[i], currdata);
         
-        cout<<"预测值="<<forecast_value<<"阈值="<<m_thresholds[i]<<"预警率="<<temp_rate<<endl;
+//        cout<<"预测值="<<forecast_value<<"阈值="<<m_thresholds[i]<<"预警率="<<temp_rate<<endl;
         
         
         if ( (temp_rate - forecast_rate) >= epsinon )
@@ -115,8 +113,8 @@ int CARMA::get_forecast_region(int k, int A_m, int theta, int t, string time, Da
     
     cout<<"best_threshold="<<best_threshold<<endl;
     
-    m_min_threshold = forecast_value - (DataType)best_threshold/(DataType)2;
-    m_max_threshold = forecast_value + (DataType)best_threshold/(DataType)2;
+    m_min_threshold = forecast_value - (DataType)best_threshold;
+    m_max_threshold = forecast_value + (DataType)best_threshold;
     
        
     return SUCC;    
@@ -609,11 +607,11 @@ int CARMA::get_threshold(int k, int A_m, int theta, int t)
 				
 		for (ii=0; ii<=A_m_end; ii++)
 		{
-			curr_A_m =  0.1 + (double)ii/(double)10;
+			curr_A_m =  0.1 + (DataType)ii/(DataType)10;
 			
 			for (jj=0; jj<=theta_end; jj++)
 			{				
-				curr_theta = 0.1 + (double)jj/(double)10;
+				curr_theta = 0.1 + (DataType)jj/(DataType)10;
 				
 				for (kk=1; kk<t; kk++)
 				{								
@@ -740,7 +738,7 @@ DataType CARMA::get_forecast_rate(DataType forecast_value, DataType threshold, C
     
     rate = (DataType)(num_a+num_d)/(DataType)(num_a+num_b+num_c+num_d);
     
-    cout<<"num_a,num_b,num_c,num_d分别为："<<num_a<<","<<num_b<<","<<num_c<<","<<num_d<<endl;
+//    cout<<"num_a,num_b,num_c,num_d分别为："<<num_a<<","<<num_b<<","<<num_c<<","<<num_d<<endl;
     
     return rate;
     
@@ -752,10 +750,7 @@ DataType CARMA::get_integral(DataType A_m, DataType theta, DataType a, DataType 
 {
 	int i, j;
 	
-	
-	
-	DataType value;
-	
+	DataType value;	
 	DataType s,x,h;
 	
 	int n=200;//积分和划分区间
@@ -848,11 +843,38 @@ void CARMA::k_means(int k, DataType means[])
 		
 	while(fabs(newVar - oldVar) >= epsinon) //当新旧函数值相差不到epsinon即准则函数值不发生明显变化时，算法终止
 	{
+		
+//		cout<<"排序前："<<endl;
+//		for(lable=0;lable<k;lable++)
+//		{
+//			cout<<"第"<<lable+1<<"个簇："<<endl;
+//			vector<Data> t = clusters[lable];
+//			for (i = 0; i< t.size(); i++)
+//			{
+//				cout<<"("<<t[i].value<<","<<t[i].time<<")"<<"   ";
+//			}	
+//			cout<<endl;
+//		}
+		//按照时间字段调整各个簇的先后顺序
+		sort_clusters(k, clusters);
+		
+//		cout<<"排序后："<<endl;
+//		
+//		for(lable=0;lable<k;lable++)
+//		{
+//			cout<<"第"<<lable+1<<"个簇："<<endl;
+//			vector<Data> t = clusters[lable];
+//			for (i = 0; i< t.size(); i++)
+//			{
+//				cout<<"("<<t[i].value<<","<<t[i].time<<")"<<"   ";
+//			}	
+//			cout<<endl;
+//		}
 		//更新每个簇的中心点
 		for (i = 0; i < k; i++) 
 		{
 			means[i] = getmeans(clusters[i]);
-			cout<<"means["<<i<<"]:"<<means[i]<<endl;
+//			cout<<"means["<<i<<"]:"<<means[i]<<endl;
 		}
 		
 		oldVar = newVar;
@@ -862,7 +884,7 @@ void CARMA::k_means(int k, DataType means[])
 			clusters[i].clear();
 		}
 		
-		cout<<"newVar="<<newVar<<endl;
+//		cout<<"newVar="<<newVar<<endl;
 		
 		//根据新的质心获得新的簇
 //		for(i=0;i!=tuples.size();++i)
@@ -887,7 +909,6 @@ void CARMA::k_means(int k, DataType means[])
 
 	
 }
-
 
 //根据质心，决定当前元组属于哪个簇
 int CARMA::getcluster(int k, DataType means[],Data tuple)
@@ -929,6 +950,7 @@ DataType CARMA::getvar(int k, vector<Data> clusters[],DataType means[])
 	return var;
 
 }
+
 //获得当前簇的均值（质心）
 DataType CARMA::getmeans(vector<Data> cluster)
 {
@@ -959,6 +981,94 @@ DataType CARMA::getdistXY(DataType x, Data y)
 	
 	return fabs(x - y.value);
 	
+}
+
+//
+void CARMA::sort_clusters(int k, vector<Data> clusters[])
+{
+    int i;
+    
+    vector<Data> clusters_temp[k];
+    
+    for (i=0; i<k; i++)
+    {
+        clusters_temp[i].assign(clusters[i].begin(), clusters[i].end());
+    }
+    
+    string temp_time[k];
+    int flag[k];
+    
+   
+    for (i=0; i<k; i++)
+    {
+        flag[i] = i;
+        get_latest_time(clusters_temp[i], temp_time[i]);
+    }
+    
+    //降序
+	string temp;
+	int flag_temp = 0;
+	for (int i = 1; i < k; i++)
+	{
+		for ( int j = (k-1); j >= i; j--)
+		{
+			if (temp_time[j-1] < temp_time[j])
+			{
+				temp = temp_time[j-1];
+				temp_time[j-1] = temp_time[j];
+				temp_time[j] = temp;
+				
+				flag_temp = flag[j-1];
+				flag[j-1] = flag[j];
+				flag[j] = flag_temp;
+				
+			}
+		}
+	}
+	
+	
+	for (i = 0; i < k; i++) 
+	{
+		clusters[i].clear();
+	}
+	
+	for (i = 0; i < k; i++) 
+	{
+		int index = flag[i];
+		clusters[i].assign(clusters_temp[index].begin(), clusters_temp[index].end());
+	}
+	
+    
+    
+    
+    
+    
+	
+}
+
+void CARMA::get_latest_time(vector<Data> &clusters, string &latest_time)
+{
+    int i;
+    int len = clusters.size();
+    
+    if (len <= 0)
+    {
+        return;
+    }
+    
+    latest_time = clusters[0].time;
+    
+    for (i=1; i<len; i++)
+    {
+//        cout<<"latest_time="<<latest_time<<","<<"clusters_time="<<clusters[i].time<<endl;
+        if (clusters[i].time > latest_time)
+        {
+            latest_time = clusters[i].time;           
+        }       
+    }
+    
+//    cout<<"latest_time======="<<latest_time<<endl<<endl;
+   
 }
 
 void CARMA::print_his_data()
@@ -1009,7 +1119,7 @@ int CARMA::init_matrix(DataType*** matrix, int row, int column)
 		if (NULL == (*matrix)[i])
 		{
 			cout<<"malloc error.."<<endl;
-			return -1;
+			return FAIL;
 		}
 	}
 	

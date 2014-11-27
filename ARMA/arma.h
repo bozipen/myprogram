@@ -1,6 +1,6 @@
 /************************************************************************************
 * File Name: arma.h
-* Desc: arma预测算法相关的结构声明,包括：
+* Desc: 预测算法相关的结构声明,包括：
        1.
        2.
        3.
@@ -66,7 +66,6 @@ class CARMA
 	    int get_forecast_region(int k, int A_m, int theta, int t, string time, DataType &forecast_value, DataType &threshold);
 
 				
-				
 	private:	
 	
 		//预测模型求解相关
@@ -78,7 +77,9 @@ class CARMA
 		int	parameter_estimation(int p, int q, CData &v_p, CData &v_q); //根据p,q值，进行最小二乘参数估计
         DataType    get_bic_value(int p, int q, CData &v_p, CData &v_q, CData &v_next);//根据p,q，参数值，获取BIC值	    
 	    void    print_bic_data();                                       //打印BIC数据信息
-	
+	    void    sort_clusters(int k, vector<Data> clusters[]);         //对聚类按照元素时间进行排序
+	    void get_latest_time(vector<Data> &clusters, string &latest_time);
+	    
 	    //区间预测
 	    int getcurrdata(string time, CDataSet& data);                   //根据时间获取当前时刻所有历史数据
 	    DataType get_forecast_rate(DataType forecast_value, DataType threshold, CDataSet& data);//获取当前时刻某一阈值下的预警率
@@ -102,7 +103,6 @@ class CARMA
 		DataType  determ_matrix(DataType** matrix, int row, int column);                       //矩阵行列式求值
 		int inverse_matirx(DataType** matrix, DataType*** inverse_matirx, int row, int column);//求逆矩阵
 		int multiply_matrix(DataType** matrix1, int row1, int column1, DataType** matrix2, int row2, int column2, DataType*** matrix_result);//矩阵相乘
-
 
 
 	private:						
