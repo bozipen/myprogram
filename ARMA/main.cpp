@@ -1,11 +1,11 @@
 #include "arma.h"
 
 //预测模型可调参数
-const int P=10;
-const int Q=10;
+const int P=8;
+const int Q=8;
 
 //动态阈值区间可调参数
-const int K=100;
+const int K=50;
 const int A_M=3;
 const int THETA=3;
 const int T=100;

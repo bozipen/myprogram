@@ -35,6 +35,8 @@ CARMA::CARMA(CDataSet& his_data, int p, int q)
 
 }
 
+
+
 int CARMA::get_forecast_graph(CBICSet& bic_set, CDataSet& forecast_data)
 {
     
@@ -261,6 +263,7 @@ int CARMA::parameter_estimation(int p, int q, CData &v_p, CData &v_q)
 
 //	cout<<"X_matrix:"<<endl;
 //	print_matrix(X_matrix, p_matrix_size, p);
+	
 	
 	
 
@@ -713,7 +716,7 @@ DataType CARMA::get_forecast_rate(DataType forecast_value, DataType threshold, C
     {
         if ( (data[i].value-min_value >= epsinon) && (max_value-data[i].value >= epsinon) )
         {
-            if (data[i].flag == 1)
+            if (data[i].flag == 0)
             {
                 num_a++;
             }
@@ -724,7 +727,7 @@ DataType CARMA::get_forecast_rate(DataType forecast_value, DataType threshold, C
         }
         else
         {
-            if (data[i].flag == 1)
+            if (data[i].flag == 0)
             {
                 num_c++;
             }
@@ -813,7 +816,7 @@ void CARMA::k_means(int k, DataType means[])
 	        }
 	    }	
 	    
-	    cout<<"means["<<i<<"]"<<means[i]<<endl;
+//	    cout<<"means["<<i<<"]"<<means[i]<<endl;
 
 	}
 	
