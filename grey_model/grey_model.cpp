@@ -24,18 +24,18 @@ CGreyModel::CGreyModel(CDataSet& his_data)
 //	print_his_data();
 		
     m_init_population_num = 5;  //初始种群数目  
-    m_max_population_num = 100; //最大种群数目  
+    m_max_population_num = 300; //最大种群数目  
     m_min_seed = 0;             //最小种子数    
     m_max_seed = 5;             //最大种子数    
-    m_max_iteration_num = 300;  //最大迭代次数  
+    m_max_iteration_num = 100;  //最大迭代次数  
     m_dimension = 2;            //求解维数      
     m_nonlinear_parameter = 2;  //非线性调制参数
     m_init_stand_dev = 50.00;   //初始标准差    
     m_final_stand_dev = 0.01;   //最终标准差       
-    m_a_min = -0.30;            //a随机范围下限 
-    m_a_max = 2.00;	            //a随机范围上限 
-    m_u_min = 1.00;             //u随机范围下限 
-    m_u_max = 20.00;            //u随机范围上限
+    m_a_min = -0.3;             //a随机范围下限 
+    m_a_max = 2;	        //a随机范围上限 
+    m_u_min = 0.00;          //u随机范围下限 
+    m_u_max = 200.5;          //u随机范围上限
     
     m_curr_population_num = 0; 
 
@@ -58,18 +58,26 @@ int CGreyModel::get_model()
 	int fitness_size = 0;	
 	DataType fitness_max = 0.0000;
 	DataType last_a = 0.00;
-	int last_u = 0;
+	DataType last_u = 0.00;
 	DataType epsinon  = 0.000000000001;
 	
 	//多次迭代
-	for (i=0; i<m_max_iteration_num; i++)
+//	for (i=0; i<m_max_iteration_num; i++)
+	for (i=0; i<100; i++)
 	{
 	    gen_rand_solution(m_init_population_num);
 	    	    
 	    fitness_size = fitness_set.size();
 	    
+	    fitness_max = 0.0000;
+	    last_a = 0.00;
+	    last_u = 0.00;
+	    	    
 	    for (j=0; j<fitness_size; j++)
 	    {
+	    	
+//	    	cout<<"last_a="<<fitness_set[j].a_value<<",last_u="<<fitness_set[j].u_value<<",fitness_max="<<fitness_set[j].fitness<<endl;
+
     		//记录最大的fitness
     		if ( fitness_set[j].fitness - fitness_max >= epsinon )
     		{
@@ -78,12 +86,45 @@ int CGreyModel::get_model()
     			last_u = 	fitness_set[j].u_value;   					         	
     		}
 	    }
+	    
+	  	cout<<"last_a="<<last_a<<",last_u="<<last_u<<",fitness_max="<<fitness_max<<endl;
+	  	
+	  	Fitness temp;
+        temp.fitness = fitness_max;
+        temp.a_value = last_a;
+        temp.u_value = last_u;
+              
+        fitness_set_last.push_back(temp);
+	  	
+	  	
+//		cout<<"last_u="<<last_u<<endl;
+//		cout<<"fitness_max="<<fitness_max<<endl;
+
 	    	    	 
 	    fitness_set.clear();
 	    m_curr_population_num = 0;
 	    
 	}
 	
+	fitness_max = 0.0000;
+	last_a = 0.00;
+	last_u = 0.00;
+	
+	fitness_size = fitness_set_last.size();	
+	    	    
+    for (j=0; j<fitness_size; j++)
+    {    	
+		//记录最大的fitness
+		if ( fitness_set_last[j].fitness - fitness_max >= epsinon )
+		{
+			fitness_max = fitness_set_last[j].fitness;
+			last_a = 	fitness_set_last[j].a_value;
+			last_u = 	fitness_set_last[j].u_value;   					         	
+		}
+    }
+	
+	
+	cout<<"the end:"<<endl;
 	cout<<"last_a="<<last_a<<endl;
 	cout<<"last_u="<<last_u<<endl;
 	cout<<"fitness_max="<<fitness_max<<endl;
@@ -132,10 +173,9 @@ int CGreyModel::forecast_data()
 
 int CGreyModel::gen_rand_solution(int num)
 {
-    if (num < 1)
-    {
-        return FAIL;
-    }
+    
+//    m_curr_population_num += num;
+
     
     if (m_curr_population_num >= m_max_population_num)
     {
@@ -143,11 +183,12 @@ int CGreyModel::gen_rand_solution(int num)
     }
     
     
+    
     DataType temp_a = 0.00;
-    int temp_u = 0;
+    DataType temp_u = 0.00;
     
     DataType fitness = 0.00;
-    DataType fitness_min = 100000.00;
+    DataType fitness_min = 100000000.00;
     DataType fitness_max = 0.00;
     DataType epsinon  = 0.000000000001;
     
@@ -155,11 +196,13 @@ int CGreyModel::gen_rand_solution(int num)
     
 //    vector<int> seed_num;
     
-    srand((unsigned)time(NULL)); /*随机数初始化*/
+//    srand((unsigned)time(NULL)); /*随机数初始化*/
     
     int i;
     for (i=0; i<num; i++)
     {
+//        srand((unsigned)time(NULL)); /*随机数初始化*/
+        
         temp_a = get_rand_a();
         temp_u = get_rand_u();  
         
@@ -169,7 +212,7 @@ int CGreyModel::gen_rand_solution(int num)
         
 //        a.push_back(temp_a);
 //        u.push_back(temp_u);
-             
+ //            
         fitness = get_fitness(temp_a, temp_u);
         
         Fitness temp;
@@ -195,7 +238,7 @@ int CGreyModel::gen_rand_solution(int num)
 		}
 		
 		
-		cout<<"fitness="<<fitness<<endl;
+//		cout<<"fitness="<<fitness<<endl;
 		                
     }
     
@@ -217,7 +260,7 @@ int CGreyModel::gen_rand_solution(int num)
            m_curr_population_num += seed_num_temp;
            gen_rand_solution(seed_num_temp);
            
-           cout<<"m_curr_population_num="<<m_curr_population_num<<endl;
+//           cout<<"m_curr_population_num="<<m_curr_population_num<<endl;
             
         }
         
@@ -235,21 +278,30 @@ DataType CGreyModel::get_rand_a()
 {   
     DataType temp = 0.00;
     
+//    srand((unsigned)time(NULL)); /*随机数初始化*/
+
+//	cout<<"rand_a="<<rand()<<endl;
+    
     temp = m_a_min + rand() * 1.0 * (m_a_max - m_a_min) / RAND_MAX;
 		
 	return temp;
 }
 
-int CGreyModel::get_rand_u()
+DataType CGreyModel::get_rand_u()
 {
-    int temp = 0;
+    DataType temp = 0.00;
+    
+//    srand((unsigned)time(NULL)); /*随机数初始化*/
+
+//	cout<<"rand_u="<<rand()<<endl;
       
-    temp = (rand()%(m_u_max - m_u_min)) + m_u_min;
+//    temp = (rand()% (m_u_max - m_u_min)) + m_u_min;
+	temp = m_u_min + rand() * 1.0 * (m_u_max - m_u_min) / RAND_MAX;
 				
 	return temp;
 }
 
-DataType CGreyModel::get_fitness(DataType a, int u)
+DataType CGreyModel::get_fitness(DataType a, DataType u)
 {
     int i;
     

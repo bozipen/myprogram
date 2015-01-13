@@ -41,7 +41,7 @@ typedef struct
 {
 	DataType fitness;		//fitness值
 	DataType a_value; 		//a
-	int      u_value;     	//u
+	DataType u_value;     	//u
 }Fitness;
 
 
@@ -68,9 +68,9 @@ class CGreyModel
 		int	forecast_data();
 		int gen_rand_solution(int num);//获取num个a，u作为解				
 		DataType get_rand_a();  //获取a随机数
-		int get_rand_u();       //获取u随机数
+		DataType get_rand_u();       //获取u随机数
 		
-		DataType get_fitness(DataType a, int u);
+		DataType get_fitness(DataType a, DataType u);
 		
 		
 		
@@ -89,8 +89,8 @@ class CGreyModel
 	    DataType m_final_stand_dev;	    //最终标准差       
 	    DataType m_a_min;               //a随机范围下限
 	    DataType m_a_max;	            //a随机范围上限   
-	    int m_u_min;                    //u随机范围下限
-	    int m_u_max;                    //u随机范围上限
+	    DataType m_u_min;                    //u随机范围下限
+	    DataType m_u_max;                    //u随机范围上限
 	    
 	    DataType m_fitness_best;
 	    DataType m_a_best;
@@ -98,6 +98,7 @@ class CGreyModel
 	    int m_curr_population_num;//当前的种群数目
 	    
 	    CFitnessSet fitness_set;
+	    CFitnessSet fitness_set_last;
 //	    vector<int> seed_num;
 	    
 				

@@ -1,14 +1,14 @@
 #include "arma.h"
 
 //预测模型可调参数
-const int P=8;
-const int Q=8;
+const int P=6;
+const int Q=6;
 
 //动态阈值区间可调参数
-const int K=50;
-const int A_M=3;
-const int THETA=3;
-const int T=100;
+const int K=20;
+const int A_M=2;
+const int THETA=2;
+const int T=300;
 
 const char FILE_NAME[]="test.dat";
 
@@ -23,8 +23,7 @@ int main(int argc, char** argv)
 	
 	CBICSet bic_set;
 	CDataSet forecast_data;
-	
-	string time("2014-09-12 14:00:00");
+	string time("2014-10-31 08:00:00");
 	DataType forecast_value = 0.00;
 	DataType threshold = 0.00;
 	
@@ -42,7 +41,6 @@ int main(int argc, char** argv)
 	//获取动态阈值区间
 	armaobj.get_forecast_region(K, A_M, THETA, T, time, forecast_value, threshold);
 	
-	
 	//打印BIC
 	int i, len;
 	len = bic_set.size();
@@ -54,11 +52,11 @@ int main(int argc, char** argv)
 	
 	//打印预测数据
 	len = forecast_data.size();
-//	cout<<"forecast_data result:"<<endl;
-//	for (i=0; i<len; i++)
-//	{
-//		cout<<i<<":"<<forecast_data[i].value<<","<<forecast_data[i].time<<","<<forecast_data[i].flag<<endl;
-//	}
+	cout<<"forecast_data result:"<<endl;
+	for (i=0; i<len; i++)
+	{
+		cout<<i<<":"<<forecast_data[i].value<<","<<forecast_data[i].time<<","<<forecast_data[i].flag<<endl;
+	}
 	
 	
 	cout<<"time="<<time<<endl;

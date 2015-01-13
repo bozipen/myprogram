@@ -81,7 +81,7 @@ class CARMA
 	    void get_latest_time(vector<Data> &clusters, string &latest_time);
 	    
 	    //区间预测
-	    int getcurrdata(string time, CDataSet& data);                   //根据时间获取当前时刻所有历史数据
+	    int getcurrdata(string time);                   //根据时间获取当前时刻所有历史数据
 	    DataType get_forecast_rate(DataType forecast_value, DataType threshold, CDataSet& data);//获取当前时刻某一阈值下的预警率
 		int get_threshold(int k, int A_m, int theta, int t);                //动态阈值生成，利用K均值聚类算法结合遗忘曲线模型
 		DataType get_integral(DataType A_m, DataType theta, DataType a, DataType b);  //根据遗忘曲线参数求曲线积分
@@ -93,7 +93,7 @@ class CARMA
 		DataType getvar(int k, vector<Data> clusters[],DataType means[]);//获得给定聚类的平方误差
 		DataType getmeans(vector<Data> cluster);                         //获得当前聚类的均值
 		DataType getdistXY(DataType x, Data y);                          //获取两个数据点的欧氏距离
-
+       
 
 		//矩阵运算相关
 		int init_matrix(DataType*** matrix, int row, int column);                              //初始化矩阵
@@ -111,6 +111,7 @@ class CARMA
 		CDataSet m_his_data;	 //历史数据
 		CDataSet m_mean_data;	 //均值处理后历史数据
 		CDataSet m_forecast_data;//预测数据
+		CDataSet m_curr_data;    //当前时刻所有历史数据
 		int m_data_size;		 //历史数据的长度		
 		CData m_thresholds;		 //阈值
 		DataType m_min_threshold;//阈值下限
